@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import process from "node:process";
-import { commandHandlers } from "./commands.js";
+import { commandHandlers, localOnlyCommands } from "./commands.js";
 import { loadMcpConfig } from "./config.js";
 import { McpClient } from "./mcp-client.js";
 import { parseArgv } from "./parser.js";
@@ -17,7 +17,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (parsed.command === "help") {
+  if (localOnlyCommands.has(parsed.command)) {
     process.stdout.write(`${await handler({} as never, parsed)}\n`);
     return;
   }

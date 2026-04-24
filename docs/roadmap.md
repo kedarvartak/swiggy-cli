@@ -31,3 +31,23 @@ The following ideas are intentionally not tracked in this repository at this tim
 - Discover available tools
 - Execute the Swiggy Food ordering flow
 - Document installation, configuration, and future direction
+
+## Group Ordering Progress
+
+Status: In progress
+
+Implemented foundation:
+
+- Shared group-order request and workflow model
+- Slack capability profile
+- Microsoft Teams capability profile
+- Planner that maps collaboration input to Swiggy MCP tool usage
+- Environment-backed Slack integration scaffold
+- Environment-backed Microsoft Teams integration scaffold
+- Platform launch payload previews for Slack and Teams
+
+Next implementation steps:
+
+- Persist order sessions and participant responses
+- Connect adapter actions to live Slack and Teams APIs
+- Connect planner output to real MCP tool execution

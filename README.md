@@ -15,6 +15,8 @@ Implemented now:
 - Cart view and update
 - Order placement
 - Order tracking
+- Group Ordering foundation with Slack and Microsoft Teams capability modeling
+- Group Ordering integration scaffolding for Slack and Microsoft Teams custom apps
 
 Tracked for later:
 
@@ -26,6 +28,7 @@ Tracked for later:
 
 ```text
 .
+├── .env.example
 ├── README.md
 ├── docs
 │   ├── architecture.md
@@ -37,6 +40,12 @@ Tracked for later:
 ├── src
 │   ├── commands.ts
 │   ├── config.ts
+│   ├── group-ordering
+│   │   ├── adapters.ts
+│   │   ├── config.ts
+│   │   ├── planner.ts
+│   │   ├── platforms.ts
+│   │   └── types.ts
 │   ├── index.ts
 │   ├── mcp-client.ts
 │   ├── parser.ts
@@ -61,6 +70,20 @@ export SWIGGY_MCP_ARGS="python/mock_swiggy_mcp.py"
 ```
 
 Replace the example above with the real Swiggy MCP server command when available.
+
+For Group Ordering custom app integrations, place sensitive Slack and Microsoft Teams values in environment variables. A complete template is included in `.env.example`.
+
+Important Group Ordering environment values:
+
+- `SLACK_APP_BASE_URL`: public base URL for your Slack integration
+- `SLACK_BOT_TOKEN`: Slack bot token used to post messages and updates
+- `SLACK_SIGNING_SECRET`: secret used to verify Slack requests
+- `SLACK_OAUTH_REDIRECT_URL`: redirect URL configured in the Slack app
+- `TEAMS_APP_BASE_URL`: public base URL for your Teams bot or API
+- `TEAMS_APP_ID`: Teams or Azure app identifier
+- `TEAMS_APP_PASSWORD`: Teams bot secret
+- `TEAMS_BOT_ENDPOINT_PATH`: bot message endpoint path under the base URL
+- `TEAMS_OAUTH_REDIRECT_URL`: redirect URL configured for Teams or Azure app auth
 
 ## Installation
 
@@ -125,6 +148,30 @@ Call any MCP tool directly:
 node dist/index.js raw:call --tool search_restaurants --payload '{"query":"biryani"}'
 ```
 
+Inspect Group Ordering platform capabilities:
+
+```bash
+node dist/index.js group-ordering:capabilities
+```
+
+Create a Group Ordering execution plan:
+
+```bash
+node dist/index.js group-ordering:plan --payload '{"teamName":"Product","organizer":"kedar","platform":"slack","restaurantQuery":"biryani","participants":[{"userId":"u1","displayName":"Asha"}]}'
+```
+
+Inspect whether Slack and Teams integrations are configured:
+
+```bash
+node dist/index.js group-ordering:integration-status
+```
+
+Preview the platform-specific launch payload for a custom app:
+
+```bash
+node dist/index.js group-ordering:preview --payload '{"teamName":"Product","organizer":"kedar","platform":"slack","restaurantQuery":"biryani","participants":[{"userId":"u1","displayName":"Asha"}]}'
+```
+
 ## Python Utilities
 
 Validate local MCP configuration:
@@ -141,6 +188,5 @@ python3 python/mock_swiggy_mcp.py
 
 ## Notes
 
-- This repository currently ships source code and documentation only. The local environment used for scaffolding did not have Node.js or npm installed.
 - The mock server exists so the CLI can be wired and documented before the production MCP endpoint is connected.
 - Instamart and Dineout are excluded from the first implementation by design.

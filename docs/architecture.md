@@ -29,6 +29,7 @@ Located in `src/`.
 - `mcp-client.ts`: JSON-RPC over stdio implementation
 - `commands.ts`: command-to-tool mapping for Swiggy Food flows
 - `render.ts`: terminal output formatting
+- `group-ordering/`: shared planning model for Slack and Microsoft Teams integrations
 
 ### Python Support Layer
 
@@ -48,3 +49,33 @@ Optional arguments can be supplied through:
 `SWIGGY_MCP_ARGS="<arg1> <arg2> ..."`
 
 This keeps the CLI portable across local development, containers, CI, and future agent workflows.
+
+## Group Ordering Foundation
+
+The first implementation slice for Group Ordering is intentionally platform-agnostic at the core:
+
+- shared request and workflow types describe the team order lifecycle
+- platform profiles define what Slack and Microsoft Teams can support
+- the planner converts a collaboration request into a Swiggy MCP execution sequence
+- integration config loads Slack and Teams secrets from environment variables
+- adapter previews generate Slack block payloads and Teams adaptive card payloads
+
+### Slack Capabilities
+
+- Launch a group-order flow from a channel
+- Collect responses through interactive blocks
+- Send direct-message reminders to non-responders
+- Run lightweight restaurant voting in threads
+- Share confirmation and live order-status updates back to the channel
+
+### Microsoft Teams Capabilities
+
+- Launch a group-order flow from a Teams channel
+- Collect structured submissions through adaptive cards
+- Send direct reminder messages to pending participants
+- Present review and approval states with card updates
+- Share final order confirmation and delivery tracking updates
+
+### Current Boundary
+
+This repository now includes environment-backed integration scaffolding and adapter previews for Slack and Microsoft Teams custom apps. It does not yet send live API requests or persist workflow state.

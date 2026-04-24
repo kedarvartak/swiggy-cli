@@ -7,7 +7,7 @@ function indent(text: string, spaces = 2): string {
     .join("\n");
 }
 
-export function formatJson(value: JsonValue | undefined): string {
+export function formatJson(value: unknown): string {
   if (value === undefined) {
     return "";
   }
