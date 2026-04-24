@@ -15,6 +15,7 @@ Implemented now:
 - Cart view and update
 - Order placement
 - Order tracking
+- Group Ordering foundation with Slack and Microsoft Teams capability modeling
 
 Tracked for later:
 
@@ -123,6 +124,18 @@ Call any MCP tool directly:
 
 ```bash
 node dist/index.js raw:call --tool search_restaurants --payload '{"query":"biryani"}'
+```
+
+Inspect Group Ordering platform capabilities:
+
+```bash
+node dist/index.js group-ordering:capabilities
+```
+
+Create a Group Ordering execution plan:
+
+```bash
+node dist/index.js group-ordering:plan --payload '{"teamName":"Product","organizer":"kedar","platform":"slack","restaurantQuery":"biryani","participants":[{"userId":"u1","displayName":"Asha"}]}'
 ```
 
 ## Python Utilities
