@@ -57,6 +57,8 @@ The first implementation slice for Group Ordering is intentionally platform-agno
 - shared request and workflow types describe the team order lifecycle
 - platform profiles define what Slack and Microsoft Teams can support
 - the planner converts a collaboration request into a Swiggy MCP execution sequence
+- integration config loads Slack and Teams secrets from environment variables
+- adapter previews generate Slack block payloads and Teams adaptive card payloads
 
 ### Slack Capabilities
 
@@ -76,4 +78,4 @@ The first implementation slice for Group Ordering is intentionally platform-agno
 
 ### Current Boundary
 
-This repository now models the orchestration layer and capability matrix for Group Ordering, but it does not yet include live Slack or Microsoft Teams API adapters. Those adapters will be added on top of the shared planning layer.
+This repository now includes environment-backed integration scaffolding and adapter previews for Slack and Microsoft Teams custom apps. It does not yet send live API requests or persist workflow state.

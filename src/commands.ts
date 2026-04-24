@@ -1,4 +1,6 @@
 import type { McpClient } from "./mcp-client.js";
+import { getGroupOrderingIntegrationStatus } from "./group-ordering/config.js";
+import { createPlatformLaunchPreview } from "./group-ordering/adapters.js";
 import { createGroupOrderPlan } from "./group-ordering/planner.js";
 import { platformProfiles } from "./group-ordering/platforms.js";
 import type { GroupOrderRequest, PlatformProfile } from "./group-ordering/types.js";
@@ -7,7 +9,13 @@ import type { ParsedArgs } from "./parser.js";
 import type { JsonValue } from "./types.js";
 
 type CommandHandler = (client: McpClient, args: ParsedArgs) => Promise<string>;
-export const localOnlyCommands = new Set<string>(["help", "group-ordering:capabilities", "group-ordering:plan"]);
+export const localOnlyCommands = new Set<string>([
+  "help",
+  "group-ordering:capabilities",
+  "group-ordering:integration-status",
+  "group-ordering:plan",
+  "group-ordering:preview",
+]);
 
 function requireValue(args: ParsedArgs, key: string): string {
   const value = args.options.get(key);
@@ -112,12 +120,15 @@ export const commandHandlers: Record<string, CommandHandler> = {
       "  swiggy order:place --payload '{\"payment_mode\":\"cod\"}'",
       "  swiggy order:track --order-id ORDER123",
       "  swiggy group-ordering:capabilities",
+      "  swiggy group-ordering:integration-status",
       "  swiggy group-ordering:plan --payload '{\"teamName\":\"Product\",\"organizer\":\"kedar\",\"platform\":\"slack\",\"restaurantQuery\":\"biryani\",\"participants\":[{\"userId\":\"u1\",\"displayName\":\"Asha\"}]}'",
+      "  swiggy group-ordering:preview --payload '{\"teamName\":\"Product\",\"organizer\":\"kedar\",\"platform\":\"teams\",\"restaurantQuery\":\"biryani\",\"participants\":[{\"userId\":\"u1\",\"displayName\":\"Asha\"}]}'",
       "  swiggy raw:call --tool search_restaurants --payload '{\"query\":\"biryani\"}'",
       "",
       "Environment:",
       "  SWIGGY_MCP_COMMAND  Required. Command that starts the Swiggy MCP server.",
       "  SWIGGY_MCP_ARGS     Optional. Space-delimited args for the MCP server command.",
+      "  See .env.example for Slack and Teams group-ordering integration settings.",
     ].join("\n");
   },
 
@@ -181,9 +192,18 @@ export const commandHandlers: Record<string, CommandHandler> = {
     ].join("\n");
   },
 
+  async "group-ordering:integration-status"() {
+    return formatSection("Group Ordering Integration Status", formatJson(getGroupOrderingIntegrationStatus()));
+  },
+
   async "group-ordering:plan"(_client, args) {
     const plan = createGroupOrderPlan(parseGroupOrderRequest(args));
     return formatSection("Group Ordering Plan", formatJson(plan));
+  },
+
+  async "group-ordering:preview"(_client, args) {
+    const preview = createPlatformLaunchPreview(parseGroupOrderRequest(args));
+    return formatSection("Group Ordering Platform Preview", formatJson(preview));
   },
 
   async "raw:call"(client, args) {
