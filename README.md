@@ -18,7 +18,7 @@ The current implementation covers:
 - Tool discovery
 - Restaurant search
 - Restaurant menu retrieval
-- Cart view and cart update
+- Cart view and update
 - Order placement and order tracking
 - Group Ordering planning
 - Slack and Microsoft Teams integration scaffolding for Group Ordering
@@ -31,11 +31,6 @@ The current implementation covers:
 - `docs/change-log.md`: versioned change history
 
 ## Quick Start
-
-1. Install dependencies.
-2. Build the project.
-3. Configure the MCP server command in environment variables.
-4. Run the CLI.
 
 ```bash
 npm install

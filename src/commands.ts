@@ -143,11 +143,16 @@ export const commandHandlers: Record<string, CommandHandler> = {
       "  swiggy cart:update --payload '{\"restaurant_id\":\"12345\",\"items\":[{\"id\":\"dish-1\",\"quantity\":2}]}'",
       "  swiggy order:place --payload '{\"payment_mode\":\"cod\"}'",
       "  swiggy order:track --order-id ORDER123",
+      "  swiggy group-ordering:capabilities",
+      "  swiggy group-ordering:integration-status",
+      "  swiggy group-ordering:plan --payload '{\"teamName\":\"Product\",\"organizer\":\"kedar\",\"platform\":\"slack\",\"restaurantQuery\":\"biryani\",\"participants\":[{\"userId\":\"u1\",\"displayName\":\"Asha\"}]}'",
+      "  swiggy group-ordering:preview --payload '{\"teamName\":\"Product\",\"organizer\":\"kedar\",\"platform\":\"teams\",\"restaurantQuery\":\"biryani\",\"participants\":[{\"userId\":\"u1\",\"displayName\":\"Asha\"}]}'",
       "  swiggy raw:call --tool search_restaurants --payload '{\"query\":\"biryani\"}'",
       "",
       "Environment:",
       "  SWIGGY_MCP_COMMAND  Required. Command that starts the Swiggy MCP server.",
       "  SWIGGY_MCP_ARGS     Optional. Space-delimited args for the MCP server command.",
+      "  See .env.example for Slack and Teams group-ordering integration settings.",
     ].join("\n");
   },
 
