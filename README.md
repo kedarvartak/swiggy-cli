@@ -1,50 +1,47 @@
 # Swiggy CLI
 
-Swiggy CLI is a command-line product for orchestrating Swiggy Food workflows through an MCP-compatible backend. The project starts with direct food-ordering operations and extends toward higher-level agents such as Group Ordering, Dietary Planner, Voice Agent, Reorder Agent, and Budget Optimizer Agent.
+Swiggy CLI is a TypeScript repository for a terminal-based Swiggy workflow layer. It connects to an MCP server over stdio, provides a command-line interface for Swiggy Food operations, and includes early scaffolding for Group Ordering across Slack and Microsoft Teams.
 
-The codebase is fully TypeScript. It contains the product CLI, the MCP transport layer, Group Ordering integration scaffolding for Slack and Microsoft Teams, and local development utilities such as an environment doctor and a mock MCP server.
+## What Is In This Repo
 
-## Product Idea
+- `src/` contains the TypeScript CLI, MCP client, Group Ordering logic, and local development helpers.
+- `docs/` contains the written guide to the repository, including architecture, roadmap, and change history.
+- `.env.example` lists the environment variables used by the CLI and Group Ordering integrations.
+- `dist/` is the build output created after `npm run build`.
 
-The core idea is to turn Swiggy capabilities into a programmable workflow surface.
+## Quick View
 
-At the base layer, the CLI can call Swiggy Food tools through MCP. On top of that, the project adds business workflows that are more useful than raw tool calls, such as collecting team meal preferences, planning constrained orders, or preparing future agent-driven experiences.
+The repository is organized around a simple flow:
 
-## Current Product Scope
+1. `src/index.ts` starts the CLI.
+2. `src/commands.ts` routes each command to either local logic or the MCP client.
+3. `src/mcp-client.ts` talks to the external Swiggy MCP server.
+4. `src/group-ordering/` holds the Group Ordering planning and platform scaffolding.
+5. `src/dev/` holds local utilities for validation and mock MCP development.
 
-The current implementation covers:
+## Documentation
 
-- Swiggy Food MCP connectivity over stdio
-- Tool discovery
-- Restaurant search
-- Restaurant menu retrieval
-- Cart view and update
-- Order placement and order tracking
-- Group Ordering planning
-- Slack and Microsoft Teams integration scaffolding for Group Ordering
+- `docs/architecture.md` explains the codebase structure and data flow.
+- `docs/roadmap.md` explains the business direction and future scope.
+- `docs/change-log.md` records versioned changes in the repository.
 
-## Document Guide
-
-- `README.md`: brief product overview
-- `docs/roadmap.md`: business scope, value, and future direction
-- `docs/architecture.md`: codebase explanation and technical design
-- `docs/change-log.md`: versioned change history
-
-## Quick Start
+## Setup
 
 ```bash
 npm install
 npm run build
 export SWIGGY_MCP_COMMAND=node
 export SWIGGY_MCP_ARGS="dist/dev/mock-swiggy-mcp.js"
+export SWIGGY_MCP_COMMAND=node
+export SWIGGY_MCP_ARGS="dist/dev/mock-swiggy-mcp.js"
 node dist/index.js help
 ```
 
-## Environment Configuration
+## Environment
 
-Sensitive values are expected through environment variables. A full template is available in `.env.example`.
+The repository uses environment variables for runtime configuration and integration secrets. The full set of example values is in `.env.example`.
 
-Important values:
+Important variables:
 
 - `SWIGGY_MCP_COMMAND`
 - `SWIGGY_MCP_ARGS`
@@ -57,15 +54,14 @@ Important values:
 - `TEAMS_APP_PASSWORD`
 - `TEAMS_OAUTH_REDIRECT_URL`
 
-## Local Development Utilities
+## Local Utilities
 
-The repository includes TypeScript-based local utilities:
+- `npm run doctor` checks local configuration.
+- `npm run mock:mcp` starts the mock MCP server.
 
-- `npm run doctor`: validate local runtime configuration
-- `npm run mock:mcp`: run a mock Swiggy MCP server
+## Current Focus
 
-## Notes
-
-- The current implementation is focused on Swiggy Food.
-- Instamart and Dineout are intentionally outside the first delivery scope.
-- Slack and Microsoft Teams integrations are scaffolded but not yet connected to live platform APIs.
+- Swiggy Food MCP connectivity
+- Tool discovery and food ordering flow
+- Group Ordering planning and platform scaffolding
+- TypeScript-only codebase and local utilities
