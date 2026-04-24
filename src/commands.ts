@@ -1,0 +1,134 @@
+import type { McpClient } from "./mcp-client.js";
+import { formatJson, formatSection, formatTools } from "./render.js";
+import type { ParsedArgs } from "./parser.js";
+import type { JsonValue } from "./types.js";
+
+type CommandHandler = (client: McpClient, args: ParsedArgs) => Promise<string>;
+
+function requireValue(args: ParsedArgs, key: string): string {
+  const value = args.options.get(key);
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Missing required option --${key}.`);
+  }
+  return value;
+}
+
+function optionalValue(args: ParsedArgs, key: string): string | undefined {
+  const value = args.options.get(key);
+  return typeof value === "string" ? value : undefined;
+}
+
+function parseJsonOption(args: ParsedArgs, key: string): Record<string, JsonValue> {
+  const raw = optionalValue(args, key);
+  if (!raw) {
+    return {};
+  }
+
+  const parsed = JSON.parse(raw) as JsonValue;
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error(`Option --${key} must be a JSON object.`);
+  }
+
+  return parsed as Record<string, JsonValue>;
+}
+
+async function listTools(client: McpClient): Promise<string> {
+  const tools = await client.listTools();
+  return formatSection("Available Tools", formatTools(tools));
+}
+
+async function status(client: McpClient): Promise<string> {
+  const details = await client.initialize();
+  return formatSection("MCP Status", formatJson(details));
+}
+
+async function callMappedTool(
+  client: McpClient,
+  toolName: string,
+  args: Record<string, JsonValue>,
+): Promise<string> {
+  const result = await client.callTool(toolName, args);
+  return formatSection(`Tool Result: ${toolName}`, formatJson(result));
+}
+
+export const commandHandlers: Record<string, CommandHandler> = {
+  async help() {
+    return [
+      "Swiggy CLI",
+      "",
+      "Usage:",
+      "  swiggy help",
+      "  swiggy status",
+      "  swiggy tools",
+      "  swiggy restaurants --query \"biryani\" --city bangalore",
+      "  swiggy menu --restaurant-id 12345",
+      "  swiggy cart:view",
+      "  swiggy cart:update --payload '{\"restaurant_id\":\"12345\",\"items\":[{\"id\":\"dish-1\",\"quantity\":2}]}'",
+      "  swiggy order:place --payload '{\"payment_mode\":\"cod\"}'",
+      "  swiggy order:track --order-id ORDER123",
+      "  swiggy raw:call --tool search_restaurants --payload '{\"query\":\"biryani\"}'",
+      "",
+      "Environment:",
+      "  SWIGGY_MCP_COMMAND  Required. Command that starts the Swiggy MCP server.",
+      "  SWIGGY_MCP_ARGS     Optional. Space-delimited args for the MCP server command.",
+    ].join("\n");
+  },
+
+  async status(client) {
+    return status(client);
+  },
+
+  async tools(client) {
+    return listTools(client);
+  },
+
+  async restaurants(client, args) {
+    const payload = parseJsonOption(args, "payload");
+    const query = optionalValue(args, "query");
+    const city = optionalValue(args, "city");
+    if (query) {
+      payload.query = query;
+    }
+    if (city) {
+      payload.city = city;
+    }
+    return callMappedTool(client, "search_restaurants", payload);
+  },
+
+  async menu(client, args) {
+    const payload = parseJsonOption(args, "payload");
+    const restaurantId = requireValue(args, "restaurant-id");
+    payload.restaurant_id = restaurantId;
+    return callMappedTool(client, "get_restaurant_menu", payload);
+  },
+
+  async "cart:view"(client, args) {
+    const payload = parseJsonOption(args, "payload");
+    return callMappedTool(client, "get_food_cart", payload);
+  },
+
+  async "cart:update"(client, args) {
+    const payload = parseJsonOption(args, "payload");
+    return callMappedTool(client, "update_food_cart", payload);
+  },
+
+  async "order:place"(client, args) {
+    const payload = parseJsonOption(args, "payload");
+    return callMappedTool(client, "place_food_order", payload);
+  },
+
+  async "order:track"(client, args) {
+    const payload = parseJsonOption(args, "payload");
+    const orderId = optionalValue(args, "order-id");
+    if (orderId) {
+      payload.order_id = orderId;
+    }
+    return callMappedTool(client, "track_food_order", payload);
+  },
+
+  async "raw:call"(client, args) {
+    const toolName = requireValue(args, "tool");
+    const payload = parseJsonOption(args, "payload");
+    return callMappedTool(client, toolName, payload);
+  },
+};
