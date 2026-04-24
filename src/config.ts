@@ -1,11 +1,17 @@
 import process from "node:process";
 
+/**
+ * Shared configuration required to start an external MCP server process.
+ */
 export interface McpConfig {
   command: string;
   args: string[];
   env: NodeJS.ProcessEnv;
 }
 
+/**
+ * Splits the optional MCP argument string into executable arguments.
+ */
 function parseArgs(value: string | undefined): string[] {
   if (!value) {
     return [];
@@ -17,6 +23,9 @@ function parseArgs(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Loads the stdio MCP process configuration from environment variables.
+ */
 export function loadMcpConfig(): McpConfig {
   const command = process.env.SWIGGY_MCP_COMMAND;
   if (!command) {

@@ -4,6 +4,9 @@ export interface ParsedArgs {
   options: Map<string, string | boolean>;
 }
 
+/**
+ * Parses a simple command line shape based on `--key value` options.
+ */
 export function parseArgv(argv: string[]): ParsedArgs {
   const [command = "help", ...rest] = argv;
   const positionals: string[] = [];

@@ -1,33 +1,70 @@
 # Roadmap
 
-## Current Goal
+## Product Summary
 
-Deliver a complete Swiggy Food CLI integrated with an MCP server using the Model Context Protocol over stdio.
+Swiggy CLI is intended to be a command-line operating layer for Swiggy-powered workflows. It starts with direct food-ordering operations and expands into higher-value decision support and agentic ordering experiences.
 
-## Active Pipeline
+## What The CLI Does Today
 
-Only the following ideas remain in scope for future iterations:
+The product currently supports the Swiggy Food ordering lifecycle through an MCP backend:
 
-1. Group Ordering
-   Slack or Microsoft Teams workflow that gathers team preferences and places a single optimized order.
-2. Dietary Planner
-   Meal planning copilot that filters menus by macros, allergies, and calorie targets.
-3. Voice Agent
-   Conversational ordering flow that handles end-to-end food ordering through natural language.
+- discover restaurants
+- inspect menus
+- manage cart state
+- place orders
+- track active orders
 
-## Explicitly Deferred
+It also introduces the first business workflow layer through Group Ordering, including Slack and Microsoft Teams integration planning.
 
-The following ideas are intentionally not tracked in this repository at this time:
+## Business Value
 
-- Auto-restock
-- Reservation agent
-- Multi-modal agent
-- Instamart automation
-- Dineout reservation workflows
+The CLI is useful because it turns fragmented food-ordering steps into a programmable workflow surface.
 
-## Exit Criteria for Version 0.1
+That creates value for:
 
-- Connect to an MCP server from the CLI
-- Discover available tools
-- Execute the Swiggy Food ordering flow
-- Document installation, configuration, and future direction
+- individual power users who want fast repeatable food ordering
+- operators who want predictable command-line flows
+- product teams experimenting with agentic food experiences
+- workplace use cases such as coordinated lunch ordering
+
+## Current Business Themes
+
+### Swiggy Food Operations
+
+The base product focuses on reliable ordering operations over MCP.
+
+### Group Ordering
+
+Group Ordering is the first business workflow layered above raw tool calls. It is aimed at workplace and team meal coordination, with Slack and Microsoft Teams positioned as the first collaboration surfaces.
+
+## Future Scope
+
+### Dietary Planner
+
+Meal planning copilot that filters menus by macros, allergies, and calorie targets.
+
+### Voice Agent
+
+Conversational ordering flow that handles end-to-end food ordering through natural language.
+
+### Reorder Agent
+
+Assistant that learns repeat ordering patterns and prepares near-final orders based on time, location, budget, and prior choices.
+
+### Budget Optimizer Agent
+
+Agent that assembles the best possible cart for a target budget while respecting cuisine preferences and dietary constraints.
+
+## Deliberate Non-Scope For The First Phase
+
+The first phase does not target:
+
+- Instamart workflows
+- Dineout workflows
+- reservation products
+- image-based ordering
+- auto-restock automation
+
+## Long-Term Direction
+
+The long-term direction is to evolve from a tool-driven CLI into a workflow and agent platform for food ordering, workplace coordination, and decision support around meal selection.

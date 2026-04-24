@@ -1,10 +1,25 @@
 import type { McpClient } from "./mcp-client.js";
+import { createPlatformLaunchPreview } from "./group-ordering/adapters.js";
+import { getGroupOrderingIntegrationStatus } from "./group-ordering/config.js";
+import { createGroupOrderPlan } from "./group-ordering/planner.js";
+import { platformProfiles } from "./group-ordering/platforms.js";
+import type { GroupOrderRequest, PlatformProfile } from "./group-ordering/types.js";
 import { formatJson, formatSection, formatTools } from "./render.js";
 import type { ParsedArgs } from "./parser.js";
 import type { JsonValue } from "./types.js";
 
 type CommandHandler = (client: McpClient, args: ParsedArgs) => Promise<string>;
+export const localOnlyCommands = new Set<string>([
+  "help",
+  "group-ordering:capabilities",
+  "group-ordering:integration-status",
+  "group-ordering:plan",
+  "group-ordering:preview",
+]);
 
+/**
+ * Reads a required string option from the parsed CLI arguments.
+ */
 function requireValue(args: ParsedArgs, key: string): string {
   const value = args.options.get(key);
   if (typeof value !== "string" || !value.trim()) {
@@ -13,11 +28,17 @@ function requireValue(args: ParsedArgs, key: string): string {
   return value;
 }
 
+/**
+ * Reads an optional string option from the parsed CLI arguments.
+ */
 function optionalValue(args: ParsedArgs, key: string): string | undefined {
   const value = args.options.get(key);
   return typeof value === "string" ? value : undefined;
 }
 
+/**
+ * Parses a JSON object passed through a command-line option.
+ */
 function parseJsonOption(args: ParsedArgs, key: string): Record<string, JsonValue> {
   const raw = optionalValue(args, key);
   if (!raw) {
@@ -32,16 +53,25 @@ function parseJsonOption(args: ParsedArgs, key: string): Record<string, JsonValu
   return parsed as Record<string, JsonValue>;
 }
 
+/**
+ * Lists the tools currently advertised by the connected MCP server.
+ */
 async function listTools(client: McpClient): Promise<string> {
   const tools = await client.listTools();
   return formatSection("Available Tools", formatTools(tools));
 }
 
+/**
+ * Shows the result of the MCP initialization handshake.
+ */
 async function status(client: McpClient): Promise<string> {
   const details = await client.initialize();
   return formatSection("MCP Status", formatJson(details));
 }
 
+/**
+ * Invokes a specific Swiggy MCP tool and formats the result for terminal output.
+ */
 async function callMappedTool(
   client: McpClient,
   toolName: string,
@@ -49,6 +79,53 @@ async function callMappedTool(
 ): Promise<string> {
   const result = await client.callTool(toolName, args);
   return formatSection(`Tool Result: ${toolName}`, formatJson(result));
+}
+
+/**
+ * Renders a collaboration platform profile into a readable comparison block.
+ */
+function formatCapabilityProfile(profile: PlatformProfile): string {
+  const strengths = profile.strengths.map((entry) => `- ${entry}`).join("\n");
+  const capabilities = profile.capabilities
+    .map((item) => `- ${item.title}: ${item.supported ? "Supported" : "Limited"}\n  ${item.description}`)
+    .join("\n");
+
+  return [
+    profile.displayName,
+    profile.summary,
+    "",
+    "Strengths",
+    strengths,
+    "",
+    "Capabilities",
+    capabilities,
+  ].join("\n");
+}
+
+/**
+ * Validates and converts the CLI payload into a Group Ordering request.
+ */
+function parseGroupOrderRequest(args: ParsedArgs): GroupOrderRequest {
+  const payload = parseJsonOption(args, "payload");
+  const request = payload as unknown as GroupOrderRequest;
+
+  if (!request || typeof request !== "object") {
+    throw new Error("Option --payload must describe a group order request.");
+  }
+
+  if (request.platform !== "slack" && request.platform !== "teams") {
+    throw new Error("Group order payload must include `platform` set to `slack` or `teams`.");
+  }
+
+  if (!request.teamName || !request.organizer || !request.restaurantQuery) {
+    throw new Error("Group order payload must include `teamName`, `organizer`, and `restaurantQuery`.");
+  }
+
+  if (!Array.isArray(request.participants)) {
+    throw new Error("Group order payload must include a `participants` array.");
+  }
+
+  return request;
 }
 
 export const commandHandlers: Record<string, CommandHandler> = {
@@ -124,6 +201,28 @@ export const commandHandlers: Record<string, CommandHandler> = {
       payload.order_id = orderId;
     }
     return callMappedTool(client, "track_food_order", payload);
+  },
+
+  async "group-ordering:capabilities"() {
+    return [
+      formatSection("Slack", formatCapabilityProfile(platformProfiles.slack)),
+      "",
+      formatSection("Microsoft Teams", formatCapabilityProfile(platformProfiles.teams)),
+    ].join("\n");
+  },
+
+  async "group-ordering:integration-status"() {
+    return formatSection("Group Ordering Integration Status", formatJson(getGroupOrderingIntegrationStatus()));
+  },
+
+  async "group-ordering:plan"(_client, args) {
+    const plan = createGroupOrderPlan(parseGroupOrderRequest(args));
+    return formatSection("Group Ordering Plan", formatJson(plan));
+  },
+
+  async "group-ordering:preview"(_client, args) {
+    const preview = createPlatformLaunchPreview(parseGroupOrderRequest(args));
+    return formatSection("Group Ordering Platform Preview", formatJson(preview));
   },
 
   async "raw:call"(client, args) {

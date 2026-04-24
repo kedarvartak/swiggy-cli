@@ -15,6 +15,9 @@ interface InitializeResult {
   instructions?: JsonValue;
 }
 
+/**
+ * Minimal JSON-RPC client for talking to a Swiggy MCP server over stdio.
+ */
 export class McpClient {
   private readonly child: ChildProcessWithoutNullStreams;
 
@@ -30,6 +33,9 @@ export class McpClient {
 
   private initializePromise: Promise<InitializeResult> | null = null;
 
+  /**
+   * Starts the MCP server process and wires stdout and stderr listeners.
+   */
   constructor(private readonly config: McpConfig) {
     this.child = spawn(config.command, config.args, {
       env: config.env,
@@ -54,6 +60,9 @@ export class McpClient {
     });
   }
 
+  /**
+   * Performs the MCP initialize handshake once per client instance.
+   */
   async initialize(): Promise<InitializeResult> {
     if (!this.initializePromise) {
       this.initializePromise = (async () => {
@@ -74,12 +83,18 @@ export class McpClient {
     return this.initializePromise;
   }
 
+  /**
+   * Fetches the tools exposed by the connected MCP server.
+   */
   async listTools(): Promise<ToolDescriptor[]> {
     const result = await this.request("tools/list", {});
     const tools = (result as { tools?: ToolDescriptor[] }).tools ?? [];
     return tools;
   }
 
+  /**
+   * Calls a named MCP tool with a JSON object payload.
+   */
   async callTool(name: string, args: Record<string, JsonValue>): Promise<ToolCallResult> {
     const result = await this.request("tools/call", {
       name,
@@ -89,12 +104,18 @@ export class McpClient {
     return (result as ToolCallResult) ?? {};
   }
 
+  /**
+   * Stops the underlying MCP server process.
+   */
   async close(): Promise<void> {
     if (!this.child.killed) {
       this.child.kill();
     }
   }
 
+  /**
+   * Sends a JSON-RPC request and tracks the pending promise until the response arrives.
+   */
   private async request(method: string, params: Record<string, JsonValue>): Promise<JsonValue> {
     const id = this.nextId;
     this.nextId += 1;
@@ -114,6 +135,9 @@ export class McpClient {
     return response;
   }
 
+  /**
+   * Sends a fire-and-forget JSON-RPC notification.
+   */
   private async notify(method: string, params: Record<string, JsonValue>): Promise<void> {
     const payload = {
       jsonrpc: "2.0",
@@ -123,6 +147,9 @@ export class McpClient {
     this.child.stdin.write(`${JSON.stringify(payload)}\n`);
   }
 
+  /**
+   * Processes a single line emitted by the MCP server.
+   */
   private handleLine(line: string): void {
     const trimmed = line.trim();
     if (!trimmed) {
@@ -156,6 +183,9 @@ export class McpClient {
     pending.resolve(message.result);
   }
 
+  /**
+   * Rejects all in-flight requests when the MCP process exits or becomes unusable.
+   */
   private rejectAll(error: Error): void {
     for (const [, pending] of this.pending) {
       pending.reject(error);
