@@ -1,192 +1,71 @@
 # Swiggy CLI
 
-Swiggy CLI is a TypeScript command-line application for interacting with an existing Swiggy MCP server. The first release is focused on the Swiggy Food flow: restaurant discovery, menu lookup, cart operations, order placement, and order tracking.
+Swiggy CLI is a command-line product for orchestrating Swiggy Food workflows through an MCP-compatible backend. The project starts with direct food-ordering operations and extends toward higher-level agents such as Group Ordering, Dietary Planner, Voice Agent, Reorder Agent, and Budget Optimizer Agent.
 
-The repository also includes a small Python support layer for local validation and mock-server development.
+The codebase is fully TypeScript. It contains the product CLI, the MCP transport layer, Group Ordering integration scaffolding for Slack and Microsoft Teams, and local development utilities such as an environment doctor and a mock MCP server.
 
-## Current Scope
+## Product Idea
 
-Implemented now:
+The core idea is to turn Swiggy capabilities into a programmable workflow surface.
 
-- Swiggy Food MCP integration over stdio
+At the base layer, the CLI can call Swiggy Food tools through MCP. On top of that, the project adds business workflows that are more useful than raw tool calls, such as collecting team meal preferences, planning constrained orders, or preparing future agent-driven experiences.
+
+## Current Product Scope
+
+The current implementation covers:
+
+- Swiggy Food MCP connectivity over stdio
 - Tool discovery
 - Restaurant search
 - Restaurant menu retrieval
 - Cart view and update
-- Order placement
-- Order tracking
-- Group Ordering foundation with Slack and Microsoft Teams capability modeling
-- Group Ordering integration scaffolding for Slack and Microsoft Teams custom apps
+- Order placement and order tracking
+- Group Ordering planning
+- Slack and Microsoft Teams integration scaffolding for Group Ordering
 
-Tracked for later:
+## Document Guide
 
-- Group Ordering
-- Dietary Planner
-- Voice Agent
+- `README.md`: brief product overview
+- `docs/roadmap.md`: business scope, value, and future direction
+- `docs/architecture.md`: codebase explanation and technical design
+- `docs/change-log.md`: versioned change history
 
-## Project Layout
-
-```text
-.
-├── .env.example
-├── README.md
-├── docs
-│   ├── architecture.md
-│   └── roadmap.md
-├── package.json
-├── python
-│   ├── doctor.py
-│   └── mock_swiggy_mcp.py
-├── src
-│   ├── commands.ts
-│   ├── config.ts
-│   ├── group-ordering
-│   │   ├── adapters.ts
-│   │   ├── config.ts
-│   │   ├── planner.ts
-│   │   ├── platforms.ts
-│   │   └── types.ts
-│   ├── index.ts
-│   ├── mcp-client.ts
-│   ├── parser.ts
-│   ├── render.ts
-│   └── types.ts
-└── tsconfig.json
-```
-
-## Requirements
-
-- Python 3.11 or newer
-- Node.js 20 or newer
-- A Swiggy MCP server executable that supports the Swiggy Food tools
-
-## Configuration
-
-Set the command that starts the Swiggy MCP server:
-
-```bash
-export SWIGGY_MCP_COMMAND="python3"
-export SWIGGY_MCP_ARGS="python/mock_swiggy_mcp.py"
-```
-
-Replace the example above with the real Swiggy MCP server command when available.
-
-For Group Ordering custom app integrations, place sensitive Slack and Microsoft Teams values in environment variables. A complete template is included in `.env.example`.
-
-Important Group Ordering environment values:
-
-- `SLACK_APP_BASE_URL`: public base URL for your Slack integration
-- `SLACK_BOT_TOKEN`: Slack bot token used to post messages and updates
-- `SLACK_SIGNING_SECRET`: secret used to verify Slack requests
-- `SLACK_OAUTH_REDIRECT_URL`: redirect URL configured in the Slack app
-- `TEAMS_APP_BASE_URL`: public base URL for your Teams bot or API
-- `TEAMS_APP_ID`: Teams or Azure app identifier
-- `TEAMS_APP_PASSWORD`: Teams bot secret
-- `TEAMS_BOT_ENDPOINT_PATH`: bot message endpoint path under the base URL
-- `TEAMS_OAUTH_REDIRECT_URL`: redirect URL configured for Teams or Azure app auth
-
-## Installation
+## Quick Start
 
 ```bash
 npm install
 npm run build
-```
-
-## Usage
-
-List supported CLI commands:
-
-```bash
+export SWIGGY_MCP_COMMAND=node
+export SWIGGY_MCP_ARGS="dist/dev/mock-swiggy-mcp.js"
 node dist/index.js help
 ```
 
-List tools exposed by the MCP server:
+## Environment Configuration
 
-```bash
-node dist/index.js tools
-```
+Sensitive values are expected through environment variables. A full template is available in `.env.example`.
 
-Search restaurants:
+Important values:
 
-```bash
-node dist/index.js restaurants --query "biryani" --city bangalore
-```
+- `SWIGGY_MCP_COMMAND`
+- `SWIGGY_MCP_ARGS`
+- `SLACK_APP_BASE_URL`
+- `SLACK_BOT_TOKEN`
+- `SLACK_SIGNING_SECRET`
+- `SLACK_OAUTH_REDIRECT_URL`
+- `TEAMS_APP_BASE_URL`
+- `TEAMS_APP_ID`
+- `TEAMS_APP_PASSWORD`
+- `TEAMS_OAUTH_REDIRECT_URL`
 
-Fetch a restaurant menu:
+## Local Development Utilities
 
-```bash
-node dist/index.js menu --restaurant-id rest-101
-```
+The repository includes TypeScript-based local utilities:
 
-Update the cart:
-
-```bash
-node dist/index.js cart:update --payload '{"restaurant_id":"rest-101","items":[{"id":"dish-1","quantity":2}]}'
-```
-
-View the cart:
-
-```bash
-node dist/index.js cart:view
-```
-
-Place an order:
-
-```bash
-node dist/index.js order:place --payload '{"payment_mode":"cod"}'
-```
-
-Track an order:
-
-```bash
-node dist/index.js order:track --order-id order-demo-1001
-```
-
-Call any MCP tool directly:
-
-```bash
-node dist/index.js raw:call --tool search_restaurants --payload '{"query":"biryani"}'
-```
-
-Inspect Group Ordering platform capabilities:
-
-```bash
-node dist/index.js group-ordering:capabilities
-```
-
-Create a Group Ordering execution plan:
-
-```bash
-node dist/index.js group-ordering:plan --payload '{"teamName":"Product","organizer":"kedar","platform":"slack","restaurantQuery":"biryani","participants":[{"userId":"u1","displayName":"Asha"}]}'
-```
-
-Inspect whether Slack and Teams integrations are configured:
-
-```bash
-node dist/index.js group-ordering:integration-status
-```
-
-Preview the platform-specific launch payload for a custom app:
-
-```bash
-node dist/index.js group-ordering:preview --payload '{"teamName":"Product","organizer":"kedar","platform":"slack","restaurantQuery":"biryani","participants":[{"userId":"u1","displayName":"Asha"}]}'
-```
-
-## Python Utilities
-
-Validate local MCP configuration:
-
-```bash
-python3 python/doctor.py
-```
-
-Run the local mock MCP server:
-
-```bash
-python3 python/mock_swiggy_mcp.py
-```
+- `npm run doctor`: validate local runtime configuration
+- `npm run mock:mcp`: run a mock Swiggy MCP server
 
 ## Notes
 
-- The mock server exists so the CLI can be wired and documented before the production MCP endpoint is connected.
-- Instamart and Dineout are excluded from the first implementation by design.
+- The current implementation is focused on Swiggy Food.
+- Instamart and Dineout are intentionally outside the first delivery scope.
+- Slack and Microsoft Teams integrations are scaffolded but not yet connected to live platform APIs.

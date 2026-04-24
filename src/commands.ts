@@ -1,6 +1,6 @@
 import type { McpClient } from "./mcp-client.js";
-import { getGroupOrderingIntegrationStatus } from "./group-ordering/config.js";
 import { createPlatformLaunchPreview } from "./group-ordering/adapters.js";
+import { getGroupOrderingIntegrationStatus } from "./group-ordering/config.js";
 import { createGroupOrderPlan } from "./group-ordering/planner.js";
 import { platformProfiles } from "./group-ordering/platforms.js";
 import type { GroupOrderRequest, PlatformProfile } from "./group-ordering/types.js";
@@ -17,6 +17,9 @@ export const localOnlyCommands = new Set<string>([
   "group-ordering:preview",
 ]);
 
+/**
+ * Reads a required string option from the parsed CLI arguments.
+ */
 function requireValue(args: ParsedArgs, key: string): string {
   const value = args.options.get(key);
   if (typeof value !== "string" || !value.trim()) {
@@ -25,11 +28,17 @@ function requireValue(args: ParsedArgs, key: string): string {
   return value;
 }
 
+/**
+ * Reads an optional string option from the parsed CLI arguments.
+ */
 function optionalValue(args: ParsedArgs, key: string): string | undefined {
   const value = args.options.get(key);
   return typeof value === "string" ? value : undefined;
 }
 
+/**
+ * Parses a JSON object passed through a command-line option.
+ */
 function parseJsonOption(args: ParsedArgs, key: string): Record<string, JsonValue> {
   const raw = optionalValue(args, key);
   if (!raw) {
@@ -44,16 +53,25 @@ function parseJsonOption(args: ParsedArgs, key: string): Record<string, JsonValu
   return parsed as Record<string, JsonValue>;
 }
 
+/**
+ * Lists the tools currently advertised by the connected MCP server.
+ */
 async function listTools(client: McpClient): Promise<string> {
   const tools = await client.listTools();
   return formatSection("Available Tools", formatTools(tools));
 }
 
+/**
+ * Shows the result of the MCP initialization handshake.
+ */
 async function status(client: McpClient): Promise<string> {
   const details = await client.initialize();
   return formatSection("MCP Status", formatJson(details));
 }
 
+/**
+ * Invokes a specific Swiggy MCP tool and formats the result for terminal output.
+ */
 async function callMappedTool(
   client: McpClient,
   toolName: string,
@@ -63,6 +81,9 @@ async function callMappedTool(
   return formatSection(`Tool Result: ${toolName}`, formatJson(result));
 }
 
+/**
+ * Renders a collaboration platform profile into a readable comparison block.
+ */
 function formatCapabilityProfile(profile: PlatformProfile): string {
   const strengths = profile.strengths.map((entry) => `- ${entry}`).join("\n");
   const capabilities = profile.capabilities
@@ -81,6 +102,9 @@ function formatCapabilityProfile(profile: PlatformProfile): string {
   ].join("\n");
 }
 
+/**
+ * Validates and converts the CLI payload into a Group Ordering request.
+ */
 function parseGroupOrderRequest(args: ParsedArgs): GroupOrderRequest {
   const payload = parseJsonOption(args, "payload");
   const request = payload as unknown as GroupOrderRequest;

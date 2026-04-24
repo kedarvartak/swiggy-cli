@@ -87,6 +87,9 @@ export const platformProfiles: Record<"slack" | "teams", PlatformProfile> = {
   },
 };
 
+/**
+ * Resolves a supported collaboration platform to its capability profile.
+ */
 export function getPlatformProfile(name: string): PlatformProfile {
   if (name !== "slack" && name !== "teams") {
     throw new Error(`Unsupported platform: ${name}. Expected one of: slack, teams.`);

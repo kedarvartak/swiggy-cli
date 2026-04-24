@@ -1,11 +1,17 @@
 import { getGroupOrderingIntegrationStatus, loadGroupOrderingIntegrationConfig } from "./config.js";
 import type { GroupOrderRequest, PlatformLaunchPreview } from "./types.js";
 
+/**
+ * Creates a stable session identifier that platform adapters can attach to interactive payloads.
+ */
 function createSessionKey(request: GroupOrderRequest): string {
   const normalizedTeam = request.teamName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return `${request.platform}-${normalizedTeam}-${request.participants.length}`;
 }
 
+/**
+ * Generates the Slack-specific launch preview used by a custom app integration.
+ */
 function slackPreview(request: GroupOrderRequest): PlatformLaunchPreview {
   const config = loadGroupOrderingIntegrationConfig().slack;
   const status = getGroupOrderingIntegrationStatus().slack;
@@ -64,6 +70,9 @@ function slackPreview(request: GroupOrderRequest): PlatformLaunchPreview {
   };
 }
 
+/**
+ * Generates the Microsoft Teams launch preview used by a custom app integration.
+ */
 function teamsPreview(request: GroupOrderRequest): PlatformLaunchPreview {
   const config = loadGroupOrderingIntegrationConfig().teams;
   const status = getGroupOrderingIntegrationStatus().teams;
@@ -124,6 +133,9 @@ function teamsPreview(request: GroupOrderRequest): PlatformLaunchPreview {
   };
 }
 
+/**
+ * Routes a group order request to the correct platform preview adapter.
+ */
 export function createPlatformLaunchPreview(request: GroupOrderRequest): PlatformLaunchPreview {
   if (request.platform === "slack") {
     return slackPreview(request);

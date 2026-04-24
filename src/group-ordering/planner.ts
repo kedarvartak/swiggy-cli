@@ -1,6 +1,9 @@
 import { getPlatformProfile } from "./platforms.js";
 import type { GroupOrderPlan, GroupOrderRequest, WorkflowStep } from "./types.js";
 
+/**
+ * Builds the shared workflow that turns a collaboration request into a Swiggy ordering flow.
+ */
 function buildWorkflow(platformName: "slack" | "teams"): WorkflowStep[] {
   const platformAction =
     platformName === "slack"
@@ -53,6 +56,9 @@ function buildWorkflow(platformName: "slack" | "teams"): WorkflowStep[] {
   ];
 }
 
+/**
+ * Produces a platform-aware Group Ordering plan from a single business request.
+ */
 export function createGroupOrderPlan(request: GroupOrderRequest): GroupOrderPlan {
   const platform = getPlatformProfile(request.platform);
 

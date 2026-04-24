@@ -1,81 +1,195 @@
 # Architecture
 
-## Objective
+## Purpose
 
-Build a production-oriented CLI that can talk to an existing Swiggy MCP server over standard input/output, without embedding platform-specific assumptions directly into the command layer.
+This document explains how the codebase is organized, how requests move through the system, and how the current implementation is intended to evolve. It is a technical guide for understanding the repository structure, not a business roadmap.
 
-## Scope for Version 0.1
+## Design Principles
 
-The current implementation targets the Swiggy Food toolset shown in the provided references:
+- Keep the CLI product-facing and easy to operate.
+- Keep MCP transport concerns isolated from feature workflows.
+- Model higher-level business flows, such as Group Ordering, above the raw Swiggy tool layer.
+- Keep sensitive integration configuration outside the codebase and inside environment variables.
+- Prefer comments before functions for intent and responsibility; avoid inline comments unless the logic is genuinely tricky.
 
-- `search_restaurants`
-- `get_restaurant_menu`
-- `update_food_cart`
-- `get_food_cart`
-- `place_food_order`
-- `track_food_order`
+## High-Level Structure
 
-Instamart and Dineout are intentionally excluded from the initial CLI implementation.
+```mermaid
+flowchart TD
+    User[CLI User] --> Entry[src/index.ts]
+    Entry --> Commands[src/commands.ts]
+    Commands --> Parser[src/parser.ts]
+    Commands --> Render[src/render.ts]
+    Commands --> GroupOrdering[src/group-ordering/*]
+    Commands --> McpClient[src/mcp-client.ts]
+    McpClient --> McpConfig[src/config.ts]
+    McpClient --> McpServer[External Swiggy MCP Server]
+    DevTools[src/dev/*] --> MockServer[Mock MCP Server]
+```
 
-## Components
+## Runtime Layers
 
-### TypeScript CLI
+### 1. CLI Layer
 
-Located in `src/`.
+Files:
 
-- `index.ts`: entry point and lifecycle management
-- `parser.ts`: lightweight command-line argument parsing
-- `config.ts`: environment-driven MCP configuration
-- `mcp-client.ts`: JSON-RPC over stdio implementation
-- `commands.ts`: command-to-tool mapping for Swiggy Food flows
-- `render.ts`: terminal output formatting
-- `group-ordering/`: shared planning model for Slack and Microsoft Teams integrations
+- `src/index.ts`
+- `src/commands.ts`
+- `src/parser.ts`
+- `src/render.ts`
 
-### Python Support Layer
+Responsibilities:
 
-Located in `python/`.
+- Accept user input from the terminal
+- Parse commands and options
+- Route commands either to local feature logic or to the MCP-backed execution path
+- Format terminal output in a consistent structure
 
-- `doctor.py`: validates local MCP command configuration
-- `mock_swiggy_mcp.py`: local mock MCP server for integration testing and demos
+### 2. MCP Integration Layer
 
-## Integration Model
+Files:
 
-The CLI assumes an external MCP server process is available and can be started with:
+- `src/config.ts`
+- `src/mcp-client.ts`
+- `src/types.ts`
 
-`SWIGGY_MCP_COMMAND="<command>"`
+Responsibilities:
 
-Optional arguments can be supplied through:
+- Read external MCP process configuration from environment variables
+- Start the MCP server process over stdio
+- Send JSON-RPC requests and notifications
+- Receive and decode JSON-RPC responses
+- Expose a small, stable client API to the rest of the CLI
 
-`SWIGGY_MCP_ARGS="<arg1> <arg2> ..."`
+### 3. Feature Workflow Layer
 
-This keeps the CLI portable across local development, containers, CI, and future agent workflows.
+Files:
 
-## Group Ordering Foundation
+- `src/group-ordering/types.ts`
+- `src/group-ordering/platforms.ts`
+- `src/group-ordering/planner.ts`
+- `src/group-ordering/config.ts`
+- `src/group-ordering/adapters.ts`
 
-The first implementation slice for Group Ordering is intentionally platform-agnostic at the core:
+Responsibilities:
 
-- shared request and workflow types describe the team order lifecycle
-- platform profiles define what Slack and Microsoft Teams can support
-- the planner converts a collaboration request into a Swiggy MCP execution sequence
-- integration config loads Slack and Teams secrets from environment variables
-- adapter previews generate Slack block payloads and Teams adaptive card payloads
+- Define business-level request and response models
+- Compare platform capabilities
+- Convert a Group Ordering request into a planned Swiggy tool sequence
+- Load Slack and Teams configuration from environment variables
+- Produce platform-specific launch previews for custom app integrations
 
-### Slack Capabilities
+### 4. Development Utility Layer
 
-- Launch a group-order flow from a channel
-- Collect responses through interactive blocks
-- Send direct-message reminders to non-responders
-- Run lightweight restaurant voting in threads
-- Share confirmation and live order-status updates back to the channel
+Files:
 
-### Microsoft Teams Capabilities
+- `src/dev/doctor.ts`
+- `src/dev/mock-swiggy-mcp.ts`
 
-- Launch a group-order flow from a Teams channel
-- Collect structured submissions through adaptive cards
-- Send direct reminder messages to pending participants
-- Present review and approval states with card updates
-- Share final order confirmation and delivery tracking updates
+Responsibilities:
 
-### Current Boundary
+- Validate local configuration without calling the production backend
+- Provide a mock MCP server so the CLI can be developed and demonstrated locally
 
-This repository now includes environment-backed integration scaffolding and adapter previews for Slack and Microsoft Teams custom apps. It does not yet send live API requests or persist workflow state.
+## Request Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant C as CLI Entry
+    participant H as Command Handler
+    participant G as Group Ordering Layer
+    participant M as MCP Client
+    participant S as Swiggy MCP Server
+
+    U->>C: Run CLI command
+    C->>H: Parse and dispatch command
+    alt Local-only command
+        H->>G: Build plan, config status, or platform preview
+        G-->>H: Structured feature output
+        H-->>U: Rendered terminal response
+    else MCP-backed command
+        H->>M: Initialize client and call tool
+        M->>S: JSON-RPC over stdio
+        S-->>M: Tool result
+        M-->>H: Structured result
+        H-->>U: Rendered terminal response
+    end
+```
+
+## File-by-File Explanation
+
+### `src/index.ts`
+
+The entry point. It decides whether a command is local-only or requires an MCP connection, then manages client lifecycle.
+
+### `src/commands.ts`
+
+The central command registry. This file is intentionally the orchestration layer for CLI behavior. It should stay readable and product-oriented.
+
+### `src/config.ts`
+
+Loads environment configuration for the external Swiggy MCP process.
+
+### `src/mcp-client.ts`
+
+Implements the stdio JSON-RPC client. This file should remain transport-focused and should not absorb business rules.
+
+### `src/group-ordering/types.ts`
+
+Defines the domain model for Group Ordering, including business requests, platform metadata, integration status, and platform preview outputs.
+
+### `src/group-ordering/platforms.ts`
+
+Holds platform capability definitions for Slack and Microsoft Teams.
+
+### `src/group-ordering/planner.ts`
+
+Converts a business request into a workflow plan that references the Swiggy tool sequence required to fulfill it.
+
+### `src/group-ordering/config.ts`
+
+Loads and validates environment-backed configuration for Slack and Teams custom apps. It also produces a redacted integration status for safe terminal output.
+
+### `src/group-ordering/adapters.ts`
+
+Generates preview payloads that show how a Group Ordering request would be launched inside Slack or Teams.
+
+### `src/dev/doctor.ts`
+
+Checks whether the local environment is configured well enough to start the MCP process.
+
+### `src/dev/mock-swiggy-mcp.ts`
+
+Acts as a lightweight Swiggy MCP simulator for local development and demos.
+
+## Current Boundaries
+
+The codebase currently does not:
+
+- persist Group Ordering sessions
+- call live Slack APIs
+- call live Microsoft Teams APIs
+- optimize carts across team constraints automatically
+- provide production authentication flows for collaboration platforms
+
+## Suggested Evolution Path
+
+```mermaid
+flowchart LR
+    A[Current CLI] --> B[Persist Group Sessions]
+    B --> C[Live Slack Integration]
+    B --> D[Live Teams Integration]
+    C --> E[Automated Group Ordering Agent]
+    D --> E
+    E --> F[Additional Agents]
+```
+
+## Commenting Convention
+
+The codebase should use:
+
+- function-level comments that explain purpose and responsibility
+- inline comments only when a specific line or branch is genuinely non-obvious
+
+This keeps the code readable without scattering low-value commentary through the implementation.

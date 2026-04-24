@@ -6,6 +6,9 @@ import { loadMcpConfig } from "./config.js";
 import { McpClient } from "./mcp-client.js";
 import { parseArgv } from "./parser.js";
 
+/**
+ * Runs the CLI, routing local-only commands directly and MCP-backed commands through the client.
+ */
 async function main(): Promise<void> {
   const parsed = parseArgv(process.argv.slice(2));
   const handler = commandHandlers[parsed.command];

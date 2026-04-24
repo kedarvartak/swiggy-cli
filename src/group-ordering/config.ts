@@ -7,11 +7,17 @@ import type {
   TeamsIntegrationConfig,
 } from "./types.js";
 
+/**
+ * Reads an optional environment variable and trims empty values away.
+ */
 function optionalEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value ? value : undefined;
 }
 
+/**
+ * Validates URL-based environment variables used by platform integrations.
+ */
 function requireUrl(name: string): string | undefined {
   const value = optionalEnv(name);
   if (!value) {
@@ -25,6 +31,9 @@ function requireUrl(name: string): string | undefined {
   }
 }
 
+/**
+ * Returns a redacted status object so docs and CLI output never print secrets.
+ */
 function secretStatus(sourceEnv: string): RedactedSecretStatus {
   return {
     configured: Boolean(optionalEnv(sourceEnv)),
@@ -32,6 +41,9 @@ function secretStatus(sourceEnv: string): RedactedSecretStatus {
   };
 }
 
+/**
+ * Loads the Slack integration configuration when the required values are present.
+ */
 function loadSlackConfig(): SlackIntegrationConfig | null {
   const botToken = optionalEnv("SLACK_BOT_TOKEN");
   const signingSecret = optionalEnv("SLACK_SIGNING_SECRET");
@@ -53,6 +65,9 @@ function loadSlackConfig(): SlackIntegrationConfig | null {
   };
 }
 
+/**
+ * Loads the Microsoft Teams integration configuration when the required values are present.
+ */
 function loadTeamsConfig(): TeamsIntegrationConfig | null {
   const appId = optionalEnv("TEAMS_APP_ID");
   const appPassword = optionalEnv("TEAMS_APP_PASSWORD");
@@ -75,6 +90,9 @@ function loadTeamsConfig(): TeamsIntegrationConfig | null {
   };
 }
 
+/**
+ * Loads the platform integration configuration used by Group Ordering adapters.
+ */
 export function loadGroupOrderingIntegrationConfig(): GroupOrderingIntegrationConfig {
   return {
     slack: loadSlackConfig(),
@@ -82,6 +100,9 @@ export function loadGroupOrderingIntegrationConfig(): GroupOrderingIntegrationCo
   };
 }
 
+/**
+ * Returns a safe configuration summary that indicates readiness without exposing secrets.
+ */
 export function getGroupOrderingIntegrationStatus(): GroupOrderingIntegrationStatus {
   const slack = loadSlackConfig();
   const teams = loadTeamsConfig();
