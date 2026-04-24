@@ -14,18 +14,7 @@ This document explains how the codebase is organized, how requests move through 
 
 ## High-Level Structure
 
-```mermaid
-flowchart TD
-    User[CLI User] --> Entry[src/index.ts]
-    Entry --> Commands[src/commands.ts]
-    Commands --> Parser[src/parser.ts]
-    Commands --> Render[src/render.ts]
-    Commands --> GroupOrdering[src/group-ordering/*]
-    Commands --> McpClient[src/mcp-client.ts]
-    McpClient --> McpConfig[src/config.ts]
-    McpClient --> McpServer[External Swiggy MCP Server]
-    DevTools[src/dev/*] --> MockServer[Mock MCP Server]
-```
+![High Level Structure](../media/high-level-structure.png)
 
 ## Runtime Layers
 
@@ -93,29 +82,7 @@ Responsibilities:
 
 ## Request Flow
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant C as CLI Entry
-    participant H as Command Handler
-    participant G as Group Ordering Layer
-    participant M as MCP Client
-    participant S as Swiggy MCP Server
-
-    U->>C: Run CLI command
-    C->>H: Parse and dispatch command
-    alt Local-only command
-        H->>G: Build plan, config status, or platform preview
-        G-->>H: Structured feature output
-        H-->>U: Rendered terminal response
-    else MCP-backed command
-        H->>M: Initialize client and call tool
-        M->>S: JSON-RPC over stdio
-        S-->>M: Tool result
-        M-->>H: Structured result
-        H-->>U: Rendered terminal response
-    end
-```
+![Request Flow](../media/request-flow.png)
 
 ## File-by-File Explanation
 
@@ -175,15 +142,7 @@ The codebase currently does not:
 
 ## Suggested Evolution Path
 
-```mermaid
-flowchart LR
-    A[Current CLI] --> B[Persist Group Sessions]
-    B --> C[Live Slack Integration]
-    B --> D[Live Teams Integration]
-    C --> E[Automated Group Ordering Agent]
-    D --> E
-    E --> F[Additional Agents]
-```
+![Suggested Flow](../media/suggested-flow.png)
 
 ## Commenting Convention
 
