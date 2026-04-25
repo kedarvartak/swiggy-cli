@@ -1,18 +1,19 @@
 # Swiggy CLI
 
-Swiggy CLI is evolving from a command-line wrapper for Swiggy actions into a workflow runtime for everyday software. The core idea is simple: connect apps through MCP, describe higher-level intent as reusable workflows, and let users invoke those workflows the same way they would invoke a skill.
+![Banner](./media/banner.png)
 
-Swiggy is the first proving ground. A user should be able to express a complex goal like ordering a healthy meal under a distance limit, above a protein threshold, and from highly rated restaurants, then let a reusable workflow plan and execute the needed tool calls.
+Swiggy CLI is a command-line wrapper for Swiggy actions into a workflow runtime for everyday software. The core idea is simple: connect apps through MCP, describe higher-level intent as reusable workflows, and let users invoke those workflows the same way they would invoke a skill.
 
-## Direction
 
-The pivot is toward three layers working together:
+## Idea
 
-- MCP-backed app capabilities such as restaurant search, menu access, cart updates, and order placement
-- workflow definitions that encode reusable multi-step decision logic
-- a marketplace model where people can publish and reuse those workflows instead of rebuilding them from scratch
+The idea is simple: skills.
 
-In this model, Swiggy CLI becomes both a product-specific interface and a reference implementation for a broader category: software skills for real-world apps.
+Coming from a software background, a skill is a reusable workflow bundle that can be linked, shared, and reused to make an existing toolchain smarter. We want the same pattern for everyday apps. Instead of treating each app action as an isolated click or prompt, we can package the decision-making, sequencing, and fallback logic into a workflow that people can invoke again and again.
+
+That matters because most useful app tasks are not one-step commands. They are multi-step outcomes with constraints, tradeoffs, and approvals. A prompt can express intent, but a workflow can encode the repeatable execution pattern behind that intent.
+
+Swiggy CLI is the first proving ground for that idea: MCP gives us the app tools, and workflows give us the reusable intelligence on top.
 
 ## Example Complex Workflow
 
@@ -81,9 +82,3 @@ Important variables today:
 - `npm run doctor` checks local configuration
 - `npm run mock:mcp` starts the mock MCP server
 
-## Current Focus
-
-- keep the Swiggy MCP tool surface reliable
-- define how reusable workflows should be represented and invoked
-- document the marketplace-style distribution model for app workflows
-- use Swiggy as the first example before generalizing to other apps
