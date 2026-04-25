@@ -1,0 +1,152 @@
+{
+  "id": "swiggy.team-offsite-meal-orchestration",
+  "title": "Team Offsite Meal Orchestration",
+  "version": "0.1.0",
+  "app": "swiggy",
+  "summary": "Coordinates a large team meal by combining dietary segmentation, budget control, timing constraints, restaurant reliability checks, batching, and fallback planning.",
+  "difficulty": "complex",
+  "tags": ["team-ordering", "operations", "fallbacks", "budgeting", "dietary-constraints"],
+  "inputs": [
+    {
+      "name": "teamName",
+      "type": "string",
+      "description": "Name of the team or event receiving the order.",
+      "required": true,
+      "example": "Launch War Room"
+    },
+    {
+      "name": "headcount",
+      "type": "number",
+      "description": "Total number of people included in the orchestration.",
+      "required": true,
+      "example": 26
+    },
+    {
+      "name": "deliveryWindow",
+      "type": "string",
+      "description": "Desired delivery time window.",
+      "required": true,
+      "example": "12:30-13:00"
+    },
+    {
+      "name": "officeLocation",
+      "type": "string",
+      "description": "Drop location or office cluster used for restaurant selection.",
+      "required": true,
+      "example": "Bellandur Ecospace"
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "description": "City used for discovery.",
+      "required": false,
+      "example": "Bangalore"
+    },
+    {
+      "name": "dietaryMatrix",
+      "type": "object",
+      "description": "Counts or segments for vegetarian, vegan, Jain, high-protein, and allergy-sensitive diners.",
+      "required": true,
+      "example": {
+        "vegetarian": 8,
+        "vegan": 2,
+        "jain": 3,
+        "highProtein": 6
+      }
+    },
+    {
+      "name": "budgetCap",
+      "type": "number",
+      "description": "Maximum spend across food, packaging, and delivery.",
+      "required": true,
+      "example": 8500
+    },
+    {
+      "name": "cuisineAvoidance",
+      "type": "array",
+      "description": "Cuisine types to avoid because of repetition or team fatigue.",
+      "required": false,
+      "example": ["pizza", "burgers"]
+    }
+  ],
+  "tools": [
+    "search_restaurants",
+    "get_restaurant_menu",
+    "update_food_cart",
+    "get_food_cart",
+    "place_food_order",
+    "track_food_order"
+  ],
+  "steps": [
+    {
+      "id": "collect-operating-constraints",
+      "title": "Collect operating constraints",
+      "kind": "input",
+      "description": "Normalize headcount, dietary segments, budget cap, time window, and location into one request object.",
+      "produces": ["orchestration brief"]
+    },
+    {
+      "id": "search-primary-vendors",
+      "title": "Search primary restaurant candidates",
+      "kind": "tool-call",
+      "description": "Discover restaurants that can plausibly support the order size, timing window, and cuisine mix.",
+      "toolName": "search_restaurants",
+      "argumentHints": ["query", "city"],
+      "produces": ["candidate restaurants"]
+    },
+    {
+      "id": "inspect-capacity-and-menus",
+      "title": "Inspect menus and fulfillment capacity",
+      "kind": "tool-call",
+      "description": "Review menus across multiple restaurants to map dietary coverage, pricing, and potential batching strategy.",
+      "toolName": "get_restaurant_menu",
+      "argumentHints": ["restaurant_id"],
+      "produces": ["restaurant coverage map"]
+    },
+    {
+      "id": "build-primary-and-fallback-baskets",
+      "title": "Build primary and fallback baskets",
+      "kind": "decision",
+      "description": "Create the best ordering plan plus backup carts in case a restaurant goes offline or key items become unavailable.",
+      "produces": ["primary basket", "fallback baskets"]
+    },
+    {
+      "id": "stage-cart",
+      "title": "Stage the chosen cart",
+      "kind": "tool-call",
+      "description": "Write the selected basket into the cart in a reviewable state.",
+      "toolName": "update_food_cart",
+      "argumentHints": ["restaurant_id", "items"]
+    },
+    {
+      "id": "human-approval",
+      "title": "Request organizer approval",
+      "kind": "approval",
+      "description": "Require a final review of budget, segmentation coverage, and fallback readiness before any mutation-heavy action."
+    },
+    {
+      "id": "place-order",
+      "title": "Place the approved order",
+      "kind": "tool-call",
+      "description": "Submit the final order only after approval and cart review.",
+      "toolName": "place_food_order",
+      "argumentHints": ["payment_mode"]
+    },
+    {
+      "id": "track-delivery",
+      "title": "Track fulfillment",
+      "kind": "tool-call",
+      "description": "Track live delivery state and communicate updates back to the organizer.",
+      "toolName": "track_food_order",
+      "argumentHints": ["order_id"]
+    }
+  ],
+  "guarantees": [
+    "Forces planning and approval before irreversible ordering steps.",
+    "Treats fallback handling as part of the workflow instead of an afterthought."
+  ],
+  "limitations": [
+    "Still depends on app-side metadata for reliability and preparation-time confidence.",
+    "The current CLI can plan this workflow but does not yet execute the full orchestration automatically."
+  ]
+}

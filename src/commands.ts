@@ -1,20 +1,17 @@
 import type { McpClient } from "./mcp-client.js";
-import { createPlatformLaunchPreview } from "./group-ordering/adapters.js";
-import { getGroupOrderingIntegrationStatus } from "./group-ordering/config.js";
-import { createGroupOrderPlan } from "./group-ordering/planner.js";
-import { platformProfiles } from "./group-ordering/platforms.js";
-import type { GroupOrderRequest, PlatformProfile } from "./group-ordering/types.js";
 import { formatJson, formatSection, formatTools } from "./render.js";
 import type { ParsedArgs } from "./parser.js";
 import type { JsonValue } from "./types.js";
+import { getWorkflowDefinition, listWorkflowDefinitions } from "./workflows/catalog.js";
+import { createWorkflowPlan } from "./workflows/planner.js";
+import type { WorkflowDefinition } from "./workflows/types.js";
 
 type CommandHandler = (client: McpClient, args: ParsedArgs) => Promise<string>;
 export const localOnlyCommands = new Set<string>([
   "help",
-  "group-ordering:capabilities",
-  "group-ordering:integration-status",
-  "group-ordering:plan",
-  "group-ordering:preview",
+  "workflow:list",
+  "workflow:describe",
+  "workflow:plan",
 ]);
 
 /**
@@ -82,50 +79,61 @@ async function callMappedTool(
 }
 
 /**
- * Renders a collaboration platform profile into a readable comparison block.
+ * Renders workflow catalog entries into a readable marketplace-style list.
  */
-function formatCapabilityProfile(profile: PlatformProfile): string {
-  const strengths = profile.strengths.map((entry) => `- ${entry}`).join("\n");
-  const capabilities = profile.capabilities
-    .map((item) => `- ${item.title}: ${item.supported ? "Supported" : "Limited"}\n  ${item.description}`)
-    .join("\n");
-
-  return [
-    profile.displayName,
-    profile.summary,
-    "",
-    "Strengths",
-    strengths,
-    "",
-    "Capabilities",
-    capabilities,
-  ].join("\n");
+function formatWorkflowCatalog(definitions: WorkflowDefinition[]): string {
+  return definitions
+    .map((definition) =>
+      [
+        `- ${definition.id}`,
+        `  ${definition.title} (${definition.difficulty})`,
+        `  ${definition.summary}`,
+        `  Tools: ${definition.tools.join(", ")}`,
+        `  Tags: ${definition.tags.join(", ")}`,
+      ].join("\n"),
+    )
+    .join("\n\n");
 }
 
 /**
- * Validates and converts the CLI payload into a Group Ordering request.
+ * Renders a single workflow definition for inspection.
  */
-function parseGroupOrderRequest(args: ParsedArgs): GroupOrderRequest {
-  const payload = parseJsonOption(args, "payload");
-  const request = payload as unknown as GroupOrderRequest;
+function formatWorkflowDefinition(definition: WorkflowDefinition): string {
+  const inputs = definition.inputs
+    .map(
+      (input) =>
+        `- ${input.name} (${input.type}${input.required ? ", required" : ", optional"}): ${input.description}`,
+    )
+    .join("\n");
+  const steps = definition.steps
+    .map((step) => `- ${step.title} [${step.kind}]${step.toolName ? ` -> ${step.toolName}` : ""}\n  ${step.description}`)
+    .join("\n");
+  const guarantees = definition.guarantees.map((entry) => `- ${entry}`).join("\n");
+  const limitations = definition.limitations.map((entry) => `- ${entry}`).join("\n");
 
-  if (!request || typeof request !== "object") {
-    throw new Error("Option --payload must describe a group order request.");
-  }
-
-  if (request.platform !== "slack" && request.platform !== "teams") {
-    throw new Error("Group order payload must include `platform` set to `slack` or `teams`.");
-  }
-
-  if (!request.teamName || !request.organizer || !request.restaurantQuery) {
-    throw new Error("Group order payload must include `teamName`, `organizer`, and `restaurantQuery`.");
-  }
-
-  if (!Array.isArray(request.participants)) {
-    throw new Error("Group order payload must include a `participants` array.");
-  }
-
-  return request;
+  return [
+    `${definition.title}`,
+    `${definition.summary}`,
+    "",
+    `Workflow ID: ${definition.id}`,
+    `Version: ${definition.version}`,
+    `App: ${definition.app}`,
+    `Difficulty: ${definition.difficulty}`,
+    `Tags: ${definition.tags.join(", ")}`,
+    `Tools: ${definition.tools.join(", ")}`,
+    "",
+    "Inputs",
+    inputs,
+    "",
+    "Steps",
+    steps,
+    "",
+    "Guarantees",
+    guarantees,
+    "",
+    "Limitations",
+    limitations,
+  ].join("\n");
 }
 
 export const commandHandlers: Record<string, CommandHandler> = {
@@ -137,23 +145,38 @@ export const commandHandlers: Record<string, CommandHandler> = {
       "  swiggy help",
       "  swiggy status",
       "  swiggy tools",
+      "  swiggy workflow:list",
+      "  swiggy workflow:describe --workflow swiggy.healthy-meal",
+      "  swiggy workflow:plan --workflow swiggy.team-offsite-meal-orchestration --payload '{\"teamName\":\"Launch War Room\",\"headcount\":26,\"deliveryWindow\":\"12:30-13:00\",\"officeLocation\":\"Bellandur\",\"dietaryMatrix\":{\"vegetarian\":8,\"vegan\":2,\"jain\":3,\"highProtein\":6},\"budgetCap\":8500}'",
       "  swiggy restaurants --query \"biryani\" --city bangalore",
       "  swiggy menu --restaurant-id 12345",
       "  swiggy cart:view",
       "  swiggy cart:update --payload '{\"restaurant_id\":\"12345\",\"items\":[{\"id\":\"dish-1\",\"quantity\":2}]}'",
       "  swiggy order:place --payload '{\"payment_mode\":\"cod\"}'",
       "  swiggy order:track --order-id ORDER123",
-      "  swiggy group-ordering:capabilities",
-      "  swiggy group-ordering:integration-status",
-      "  swiggy group-ordering:plan --payload '{\"teamName\":\"Product\",\"organizer\":\"kedar\",\"platform\":\"slack\",\"restaurantQuery\":\"biryani\",\"participants\":[{\"userId\":\"u1\",\"displayName\":\"Asha\"}]}'",
-      "  swiggy group-ordering:preview --payload '{\"teamName\":\"Product\",\"organizer\":\"kedar\",\"platform\":\"teams\",\"restaurantQuery\":\"biryani\",\"participants\":[{\"userId\":\"u1\",\"displayName\":\"Asha\"}]}'",
       "  swiggy raw:call --tool search_restaurants --payload '{\"query\":\"biryani\"}'",
       "",
       "Environment:",
       "  SWIGGY_MCP_COMMAND  Required. Command that starts the Swiggy MCP server.",
       "  SWIGGY_MCP_ARGS     Optional. Space-delimited args for the MCP server command.",
-      "  See .env.example for Slack and Teams group-ordering integration settings.",
+      "  See .env.example for the local MCP configuration.",
     ].join("\n");
+  },
+
+  async "workflow:list"() {
+    return formatSection("Available Workflows", formatWorkflowCatalog(await listWorkflowDefinitions()));
+  },
+
+  async "workflow:describe"(_client, args) {
+    const workflowId = requireValue(args, "workflow");
+    return formatSection("Workflow Definition", formatWorkflowDefinition(await getWorkflowDefinition(workflowId)));
+  },
+
+  async "workflow:plan"(_client, args) {
+    const workflowId = requireValue(args, "workflow");
+    const payload = parseJsonOption(args, "payload");
+    const plan = createWorkflowPlan(await getWorkflowDefinition(workflowId), payload);
+    return formatSection("Workflow Plan", formatJson(plan));
   },
 
   async status(client) {
@@ -206,28 +229,6 @@ export const commandHandlers: Record<string, CommandHandler> = {
       payload.order_id = orderId;
     }
     return callMappedTool(client, "track_food_order", payload);
-  },
-
-  async "group-ordering:capabilities"() {
-    return [
-      formatSection("Slack", formatCapabilityProfile(platformProfiles.slack)),
-      "",
-      formatSection("Microsoft Teams", formatCapabilityProfile(platformProfiles.teams)),
-    ].join("\n");
-  },
-
-  async "group-ordering:integration-status"() {
-    return formatSection("Group Ordering Integration Status", formatJson(getGroupOrderingIntegrationStatus()));
-  },
-
-  async "group-ordering:plan"(_client, args) {
-    const plan = createGroupOrderPlan(parseGroupOrderRequest(args));
-    return formatSection("Group Ordering Plan", formatJson(plan));
-  },
-
-  async "group-ordering:preview"(_client, args) {
-    const preview = createPlatformLaunchPreview(parseGroupOrderRequest(args));
-    return formatSection("Group Ordering Platform Preview", formatJson(preview));
   },
 
   async "raw:call"(client, args) {

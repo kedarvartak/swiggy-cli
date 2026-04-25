@@ -23,7 +23,7 @@ The codebase already has the MCP-backed foundations needed for the pivot:
 - place orders
 - track active orders
 
-It also includes an early workflow area through Group Ordering and local mock tooling for MCP development.
+It also includes a local workflow catalog and mock tooling for MCP development.
 
 ## What We Are Pivoting Toward
 
@@ -75,10 +75,6 @@ Design a registry or marketplace interface that allows users to reference publis
 ### Better Evaluation Scenarios
 
 Use high-value examples such as macro-constrained healthy meals, team lunch planning, budget optimization, and repeat ordering to validate the workflow model.
-
-## Role Of Group Ordering
-
-Group Ordering is no longer the main product story. It becomes one example of a reusable workflow family built on top of MCP tools, alongside nutrition-aware meal selection, budget-aware cart building, and workplace ordering flows.
 
 ## Deliberate Non-Scope For The Immediate Pivot
 

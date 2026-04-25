@@ -7,12 +7,18 @@ Added:
 - documentation pivot framing Swiggy CLI as a workflow runtime for MCP-backed app skills
 - marketplace-oriented product direction for reusable workflow definitions
 - architecture guidance separating app tools, workflow skills, and future registry concerns
+- local workflow catalog and workflow planning commands
 
 Changed:
 
 - README now positions Swiggy as the first reference app rather than the full long-term scope
 - roadmap now centers on reusable workflows, skill-like execution, and marketplace distribution
-- Group Ordering is now described as one workflow family within a broader workflow platform direction
+
+Removed:
+
+- legacy Group Ordering code path
+- Slack and Teams integration scaffolding
+- deprecated environment configuration for deleted collaboration features
 
 ## V1.2
 

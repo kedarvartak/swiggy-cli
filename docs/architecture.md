@@ -56,21 +56,17 @@ Responsibilities:
 
 Files:
 
-- `src/group-ordering/types.ts`
-- `src/group-ordering/platforms.ts`
-- `src/group-ordering/planner.ts`
-- `src/group-ordering/config.ts`
-- `src/group-ordering/adapters.ts`
+- `src/workflows/types.ts`
+- `src/workflows/catalog.ts`
+- `src/workflows/planner.ts`
 
 Responsibilities:
 
-- Define business-level request and response models
-- Compare platform capabilities
-- Convert a Group Ordering request into a planned Swiggy tool sequence
-- Load Slack and Teams configuration from environment variables
-- Produce platform-specific launch previews for custom app integrations
+- Define reusable workflow metadata and input contracts
+- Store workflow definitions that behave like locally available skills
+- Convert a workflow definition plus user payload into an execution plan
 
-This is the layer that is closest to the new pivot. Today it contains Group Ordering. In the target architecture, this layer grows into a workflow execution layer that can run reusable marketplace-hosted skills against MCP-backed app tools.
+This is the layer that is closest to the new pivot. It is now the first implementation of a workflow execution layer that can eventually run reusable marketplace-hosted skills against MCP-backed app tools.
 
 ### 4. Development Utility Layer
 
@@ -108,27 +104,19 @@ Loads environment configuration for the external Swiggy MCP process.
 
 Implements the stdio JSON-RPC client. This file should remain transport-focused and should not absorb business rules.
 
-### `src/group-ordering/types.ts`
+### `src/workflows/types.ts`
 
-Defines the domain model for Group Ordering, including business requests, platform metadata, integration status, and platform preview outputs.
+Defines the domain model for reusable workflows, including workflow metadata, input fields, step definitions, and generated execution plans.
 
-### `src/group-ordering/platforms.ts`
+### `src/workflows/catalog.ts`
 
-Holds platform capability definitions for Slack and Microsoft Teams.
+Stores the local workflow catalog that acts as an early stand-in for a future registry or marketplace.
 
-### `src/group-ordering/planner.ts`
+### `src/workflows/planner.ts`
 
-Converts a business request into a workflow plan that references the Swiggy tool sequence required to fulfill it.
+Converts a reusable workflow definition plus user inputs into a workflow plan that references the Swiggy tool sequence required to fulfill it.
 
-This planner is also the clearest precursor to a generic workflow engine. It already demonstrates how higher-level intent can compile into raw app tool calls.
-
-### `src/group-ordering/config.ts`
-
-Loads and validates environment-backed configuration for Slack and Teams custom apps. It also produces a redacted integration status for safe terminal output.
-
-### `src/group-ordering/adapters.ts`
-
-Generates preview payloads that show how a Group Ordering request would be launched inside Slack or Teams.
+This planner is the clearest precursor to a generic workflow engine. It demonstrates how higher-level intent can compile into raw app tool calls.
 
 ### `src/dev/doctor.ts`
 
@@ -142,14 +130,9 @@ Acts as a lightweight Swiggy MCP simulator for local development and demos.
 
 The codebase currently does not:
 
-- persist Group Ordering sessions
-- call live Slack APIs
-- call live Microsoft Teams APIs
-- optimize carts across team constraints automatically
-- provide production authentication flows for collaboration platforms
 - load workflow packages from a marketplace or registry
 - resolve a workflow reference into a portable manifest
-- execute generalized reusable skills above the Swiggy tool layer
+- execute reusable skills automatically against MCP tool outputs end to end
 
 ## Pivot Architecture
 
@@ -201,7 +184,7 @@ The CLI remains the user-facing entry point. Its future responsibilities likely 
 The practical evolution path now looks like this:
 
 1. keep the Swiggy MCP tool layer stable
-2. extract the common planning pattern from Group Ordering into a generic workflow runtime
+2. expand the current workflow planning layer into a generic workflow runtime
 3. define a portable workflow package format
 4. add local workflow loading and execution
 5. add workflow discovery through a registry or marketplace

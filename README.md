@@ -46,7 +46,7 @@ The repository is still organized around a practical execution path:
 1. `src/index.ts` starts the CLI
 2. `src/commands.ts` routes user commands to local logic or the MCP client
 3. `src/mcp-client.ts` talks to the external Swiggy MCP server
-4. `src/group-ordering/` contains the first higher-level workflow area
+4. `src/workflows/` contains reusable workflow definitions and planning logic
 5. `src/dev/mock-swiggy-mcp.ts` exposes mock MCP tools for local development and demos
 
 That means the docs now describe both the current implementation and the intended pivot toward reusable workflow packages.
@@ -75,14 +75,6 @@ Important variables today:
 
 - `SWIGGY_MCP_COMMAND`
 - `SWIGGY_MCP_ARGS`
-- `SLACK_APP_BASE_URL`
-- `SLACK_BOT_TOKEN`
-- `SLACK_SIGNING_SECRET`
-- `SLACK_OAUTH_REDIRECT_URL`
-- `TEAMS_APP_BASE_URL`
-- `TEAMS_APP_ID`
-- `TEAMS_APP_PASSWORD`
-- `TEAMS_OAUTH_REDIRECT_URL`
 
 ## Local Utilities
 
