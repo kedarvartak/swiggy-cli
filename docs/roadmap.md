@@ -2,11 +2,20 @@
 
 ## Product Summary
 
-Swiggy CLI is intended to be a command-line operating layer for Swiggy-powered workflows. It starts with direct food-ordering operations and expands into higher-value decision support and agentic ordering experiences.
+Swiggy CLI is pivoting from a Swiggy-only command interface into a reusable workflow runtime for consumer software. The new product thesis is that apps should have shareable skills: reusable workflows that sit above raw MCP tools and can be published, discovered, and executed by others.
+
+Swiggy remains the first target because food ordering is a strong example of multi-constraint intent. A user does not just want to call `search_restaurants`; they want outcomes such as:
+
+- order a healthy meal under 7 km away
+- ensure the meal has around 80 g of protein
+- choose only restaurants with at least a 4-star rating
+- stay under a budget or respect cuisine and dietary preferences
+
+That is the layer this product now wants to own.
 
 ## What The CLI Does Today
 
-The product currently supports the Swiggy Food ordering lifecycle through an MCP backend:
+The codebase already has the MCP-backed foundations needed for the pivot:
 
 - discover restaurants
 - inspect menus
@@ -14,57 +23,73 @@ The product currently supports the Swiggy Food ordering lifecycle through an MCP
 - place orders
 - track active orders
 
-It also introduces the first business workflow layer through Group Ordering, including Slack and Microsoft Teams integration planning.
+It also includes an early workflow area through Group Ordering and local mock tooling for MCP development.
 
-## Business Value
+## What We Are Pivoting Toward
 
-The CLI is useful because it turns fragmented food-ordering steps into a programmable workflow surface.
+The product direction now has four parts:
 
-That creates value for:
+### 1. App Tools Over MCP
 
-- individual power users who want fast repeatable food ordering
-- operators who want predictable command-line flows
-- product teams experimenting with agentic food experiences
-- workplace use cases such as coordinated lunch ordering
+Each app exposes concrete capabilities through MCP tools. In Swiggy, that means restaurant discovery, menu lookup, cart mutations, order placement, and tracking.
 
-## Current Business Themes
+### 2. Workflow Skills
 
-### Swiggy Food Operations
+Reusable workflows capture the decision-making layer above those tools. A workflow skill can express filtering rules, ranking logic, fallback behavior, cart-building strategy, and execution sequencing.
 
-The base product focuses on reliable ordering operations over MCP.
+### 3. Marketplace Distribution
 
-### Group Ordering
+Users should be able to reference workflows created by others instead of hand-authoring every automation themselves. That turns the CLI into an execution runtime for marketplace-hosted app skills.
 
-Group Ordering is the first business workflow layered above raw tool calls. It is aimed at workplace and team meal coordination, with Slack and Microsoft Teams positioned as the first collaboration surfaces.
+### 4. Multi-App Generalization
 
-## Future Scope
+Swiggy is the starting point, not the ceiling. The long-term category is workflows for everyday software, where apps expose tools and the community builds reusable skills on top.
 
-### Dietary Planner
+## Why This Matters
 
-Meal planning copilot that filters menus by macros, allergies, and calorie targets.
+This creates value for:
 
-### Voice Agent
+- end users who want outcome-based automation instead of manual app navigation
+- teams who want to encode repeatable operational playbooks as reusable skills
+- developers who want a standard way to package and distribute app workflows
+- marketplaces that can monetize or curate high-quality workflow definitions
 
-Conversational ordering flow that handles end-to-end food ordering through natural language.
+## Near-Term Milestones
 
-### Reorder Agent
+### Workflow-Centric Documentation
 
-Assistant that learns repeat ordering patterns and prepares near-final orders based on time, location, budget, and prior choices.
+Reframe the repository around skills, workflow execution, and marketplace distribution while clearly separating current implementation from target state.
 
-### Budget Optimizer Agent
+### Workflow Packaging Model
 
-Agent that assembles the best possible cart for a target budget while respecting cuisine preferences and dietary constraints.
+Define what a workflow artifact looks like, including metadata, required inputs, tool dependencies, execution steps, and safety constraints.
 
-## Deliberate Non-Scope For The First Phase
+### Workflow Execution Layer
 
-The first phase does not target:
+Add a runtime layer that resolves a workflow reference, binds user inputs, plans tool calls, and executes against the Swiggy MCP surface.
 
-- Instamart workflows
-- Dineout workflows
-- reservation products
-- image-based ordering
-- auto-restock automation
+### Workflow Discovery And Installation
+
+Design a registry or marketplace interface that allows users to reference published workflows by name or identifier.
+
+### Better Evaluation Scenarios
+
+Use high-value examples such as macro-constrained healthy meals, team lunch planning, budget optimization, and repeat ordering to validate the workflow model.
+
+## Role Of Group Ordering
+
+Group Ordering is no longer the main product story. It becomes one example of a reusable workflow family built on top of MCP tools, alongside nutrition-aware meal selection, budget-aware cart building, and workplace ordering flows.
+
+## Deliberate Non-Scope For The Immediate Pivot
+
+The immediate pivot does not yet require:
+
+- a full public marketplace implementation
+- live ranking models for nutrition or restaurant quality
+- generalized support for every Swiggy product line
+- cross-app workflow orchestration beyond the Swiggy proving ground
+- production-grade hosting, billing, or creator monetization systems
 
 ## Long-Term Direction
 
-The long-term direction is to evolve from a tool-driven CLI into a workflow and agent platform for food ordering, workplace coordination, and decision support around meal selection.
+The long-term direction is to make software use more like invoking a skill than clicking through screens. Swiggy CLI becomes the reference runtime where MCP tools provide app actions and marketplace workflows provide reusable intelligence.

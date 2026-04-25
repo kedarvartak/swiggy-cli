@@ -2,13 +2,15 @@
 
 ## Purpose
 
-This document explains how the codebase is organized, how requests move through the system, and how the current implementation is intended to evolve. It is a technical guide for understanding the repository structure, not a business roadmap.
+This document explains how the codebase is organized, how requests move through the system, and how the current implementation is intended to evolve after the workflow-marketplace pivot. It is a technical guide for understanding the repository structure, not a business roadmap.
 
 ## Design Principles
 
 - Keep the CLI product-facing and easy to operate.
 - Keep MCP transport concerns isolated from feature workflows.
-- Model higher-level business flows, such as Group Ordering, above the raw Swiggy tool layer.
+- Model higher-level workflows above the raw Swiggy tool layer.
+- Distinguish clearly between app capabilities and reusable workflow intelligence.
+- Treat Swiggy as the first reference app for a broader workflow runtime pattern.
 - Keep sensitive integration configuration outside the codebase and inside environment variables.
 - Prefer comments before functions for intent and responsibility; avoid inline comments unless the logic is genuinely tricky.
 
@@ -68,6 +70,8 @@ Responsibilities:
 - Load Slack and Teams configuration from environment variables
 - Produce platform-specific launch previews for custom app integrations
 
+This is the layer that is closest to the new pivot. Today it contains Group Ordering. In the target architecture, this layer grows into a workflow execution layer that can run reusable marketplace-hosted skills against MCP-backed app tools.
+
 ### 4. Development Utility Layer
 
 Files:
@@ -79,6 +83,8 @@ Responsibilities:
 
 - Validate local configuration without calling the production backend
 - Provide a mock MCP server so the CLI can be developed and demonstrated locally
+
+The mock MCP server is especially important after the pivot because it lets the team design workflow abstractions before a live production backend exists.
 
 ## Request Flow
 
@@ -114,6 +120,8 @@ Holds platform capability definitions for Slack and Microsoft Teams.
 
 Converts a business request into a workflow plan that references the Swiggy tool sequence required to fulfill it.
 
+This planner is also the clearest precursor to a generic workflow engine. It already demonstrates how higher-level intent can compile into raw app tool calls.
+
 ### `src/group-ordering/config.ts`
 
 Loads and validates environment-backed configuration for Slack and Teams custom apps. It also produces a redacted integration status for safe terminal output.
@@ -139,10 +147,65 @@ The codebase currently does not:
 - call live Microsoft Teams APIs
 - optimize carts across team constraints automatically
 - provide production authentication flows for collaboration platforms
+- load workflow packages from a marketplace or registry
+- resolve a workflow reference into a portable manifest
+- execute generalized reusable skills above the Swiggy tool layer
+
+## Pivot Architecture
+
+The repository is now moving toward a more explicit separation of concerns:
+
+### 1. App Tool Layer
+
+This is the MCP-exposed capability surface. For Swiggy, the mock server already models the shape of this layer with tools such as:
+
+- `search_restaurants`
+- `get_restaurant_menu`
+- `update_food_cart`
+- `get_food_cart`
+- `place_food_order`
+- `track_food_order`
+
+These tools should stay narrow and composable.
+
+### 2. Workflow Skill Layer
+
+This is the reusable logic layer. A workflow skill should describe:
+
+- intent and metadata
+- required user inputs
+- selection and filtering constraints
+- ranking or fallback logic
+- the ordered sequence of MCP tool calls needed for execution
+
+Example: a "healthy high-protein nearby meal" workflow could search restaurants, inspect menus, filter by nutrition proxies and distance, rank by rating, and prepare a cart candidate before final confirmation.
+
+### 3. Workflow Registry Or Marketplace Layer
+
+This is the distribution layer for workflows created by the team or by third parties. The CLI should eventually be able to resolve a workflow identifier, fetch or load its definition, validate compatibility with the current MCP tool surface, and execute it safely.
+
+### 4. CLI Runtime Layer
+
+The CLI remains the user-facing entry point. Its future responsibilities likely include:
+
+- accepting direct commands and workflow references
+- binding user-supplied inputs into workflow parameters
+- previewing execution plans before mutation-heavy steps
+- streaming status back to the terminal in a readable way
+- surfacing missing tools, unsupported constraints, and fallback decisions
 
 ## Suggested Evolution Path
 
 ![Suggested Flow](../media/suggested-flow.png)
+
+The practical evolution path now looks like this:
+
+1. keep the Swiggy MCP tool layer stable
+2. extract the common planning pattern from Group Ordering into a generic workflow runtime
+3. define a portable workflow package format
+4. add local workflow loading and execution
+5. add workflow discovery through a registry or marketplace
+6. generalize the pattern beyond Swiggy once the execution model is proven
 
 ## Commenting Convention
 
