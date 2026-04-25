@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import type { JsonValue } from "../types.js";
@@ -7,7 +7,7 @@ import type { WorkflowDefinition, WorkflowInputField, WorkflowStepDefinition } f
 /**
  * Resolves the directory that stores user-declarable workflow manifests.
  */
-function getWorkflowDirectory(): string {
+export function getWorkflowDirectory(): string {
   const configured = process.env.SWIGGY_WORKFLOW_DIR?.trim();
   if (configured) {
     return path.resolve(configured);
@@ -19,30 +19,34 @@ function getWorkflowDirectory(): string {
 /**
  * Validates workflow input field declarations loaded from JSON manifests.
  */
-function isWorkflowInputField(value: JsonValue): value is WorkflowInputField {
+function isWorkflowInputField(value: unknown): value is WorkflowInputField {
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
   return Boolean(
-    value &&
-      !Array.isArray(value) &&
-      typeof value === "object" &&
-      typeof value.name === "string" &&
-      typeof value.type === "string" &&
-      typeof value.description === "string" &&
-      typeof value.required === "boolean",
+    typeof candidate.name === "string" &&
+      typeof candidate.type === "string" &&
+      typeof candidate.description === "string" &&
+      typeof candidate.required === "boolean",
   );
 }
 
 /**
  * Validates workflow step declarations loaded from JSON manifests.
  */
-function isWorkflowStepDefinition(value: JsonValue): value is WorkflowStepDefinition {
+function isWorkflowStepDefinition(value: unknown): value is WorkflowStepDefinition {
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
   return Boolean(
-    value &&
-      !Array.isArray(value) &&
-      typeof value === "object" &&
-      typeof value.id === "string" &&
-      typeof value.title === "string" &&
-      typeof value.kind === "string" &&
-      typeof value.description === "string",
+    typeof candidate.id === "string" &&
+      typeof candidate.title === "string" &&
+      typeof candidate.kind === "string" &&
+      typeof candidate.description === "string",
   );
 }
 
@@ -84,11 +88,33 @@ function assertWorkflowDefinition(value: JsonValue, source: string): WorkflowDef
 }
 
 /**
+ * Validates a workflow manifest payload supplied by the CLI before writing it to disk.
+ */
+export function validateWorkflowDefinition(value: JsonValue, source = "inline payload"): WorkflowDefinition {
+  return assertWorkflowDefinition(value, source);
+}
+
+/**
+ * Converts a workflow id into a predictable manifest filename.
+ */
+function workflowFileName(workflowId: string): string {
+  return `${workflowId.replace(/[^a-z0-9._-]+/gi, "-")}.json`;
+}
+
+/**
  * Reads all workflow manifests declared by the user in the workflow directory.
  */
 export async function listWorkflowDefinitions(): Promise<WorkflowDefinition[]> {
   const workflowDirectory = getWorkflowDirectory();
-  const entries = await readdir(workflowDirectory, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(workflowDirectory, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
   const files = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
     .map((entry) => entry.name)
@@ -117,4 +143,23 @@ export async function getWorkflowDefinition(workflowId: string): Promise<Workflo
   }
 
   return workflow;
+}
+
+/**
+ * Writes a validated workflow manifest into the user-declarable workflow directory.
+ */
+export async function writeWorkflowDefinition(
+  definition: WorkflowDefinition,
+  options?: { force?: boolean },
+): Promise<string> {
+  const workflowDirectory = getWorkflowDirectory();
+  await mkdir(workflowDirectory, { recursive: true });
+
+  const filePath = path.join(workflowDirectory, workflowFileName(definition.id));
+  await writeFile(`${filePath}`, `${JSON.stringify(definition, null, 2)}\n`, {
+    encoding: "utf8",
+    flag: options?.force ? "w" : "wx",
+  });
+
+  return filePath;
 }

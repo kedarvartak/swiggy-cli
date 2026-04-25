@@ -2,7 +2,13 @@ import type { McpClient } from "./mcp-client.js";
 import { formatJson, formatSection, formatTools } from "./render.js";
 import type { ParsedArgs } from "./parser.js";
 import type { JsonValue } from "./types.js";
-import { getWorkflowDefinition, listWorkflowDefinitions } from "./workflows/catalog.js";
+import {
+  getWorkflowDefinition,
+  getWorkflowDirectory,
+  listWorkflowDefinitions,
+  validateWorkflowDefinition,
+  writeWorkflowDefinition,
+} from "./workflows/catalog.js";
 import { createWorkflowPlan } from "./workflows/planner.js";
 import type { WorkflowDefinition } from "./workflows/types.js";
 
@@ -12,6 +18,7 @@ export const localOnlyCommands = new Set<string>([
   "workflow:list",
   "workflow:describe",
   "workflow:plan",
+  "workflow:write",
 ]);
 
 /**
@@ -31,6 +38,13 @@ function requireValue(args: ParsedArgs, key: string): string {
 function optionalValue(args: ParsedArgs, key: string): string | undefined {
   const value = args.options.get(key);
   return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * Reads a boolean flag option from the parsed CLI arguments.
+ */
+function hasFlag(args: ParsedArgs, key: string): boolean {
+  return args.options.get(key) === true;
 }
 
 /**
@@ -82,6 +96,10 @@ async function callMappedTool(
  * Renders workflow catalog entries into a readable marketplace-style list.
  */
 function formatWorkflowCatalog(definitions: WorkflowDefinition[]): string {
+  if (definitions.length === 0) {
+    return `No workflows found in ${getWorkflowDirectory()}.`;
+  }
+
   return definitions
     .map((definition) =>
       [
@@ -148,6 +166,7 @@ export const commandHandlers: Record<string, CommandHandler> = {
       "  swiggy workflow:list",
       "  swiggy workflow:describe --workflow swiggy.healthy-meal",
       "  swiggy workflow:plan --workflow swiggy.team-offsite-meal-orchestration --payload '{\"teamName\":\"Launch War Room\",\"headcount\":26,\"deliveryWindow\":\"12:30-13:00\",\"officeLocation\":\"Bellandur\",\"dietaryMatrix\":{\"vegetarian\":8,\"vegan\":2,\"jain\":3,\"highProtein\":6},\"budgetCap\":8500}'",
+      "  swiggy workflow:write --payload '{\"id\":\"swiggy.weekday-lunch\",\"title\":\"Weekday Lunch\",\"version\":\"0.1.0\",\"app\":\"swiggy\",\"summary\":\"Picks a quick lunch workflow.\",\"difficulty\":\"advanced\",\"tags\":[\"lunch\"],\"inputs\":[],\"tools\":[\"search_restaurants\"],\"steps\":[{\"id\":\"search\",\"title\":\"Search\",\"kind\":\"tool-call\",\"description\":\"Search restaurants.\",\"toolName\":\"search_restaurants\"}],\"guarantees\":[\"Uses MCP tools only.\"],\"limitations\":[\"Demo manifest.\"]}'",
       "  swiggy restaurants --query \"biryani\" --city bangalore",
       "  swiggy menu --restaurant-id 12345",
       "  swiggy cart:view",
@@ -177,6 +196,24 @@ export const commandHandlers: Record<string, CommandHandler> = {
     const payload = parseJsonOption(args, "payload");
     const plan = createWorkflowPlan(await getWorkflowDefinition(workflowId), payload);
     return formatSection("Workflow Plan", formatJson(plan));
+  },
+
+  async "workflow:write"(_client, args) {
+    const payload = parseJsonOption(args, "payload");
+    const definition = validateWorkflowDefinition(payload, "command payload");
+    const filePath = await writeWorkflowDefinition(definition, { force: hasFlag(args, "force") });
+
+    return formatSection(
+      "Workflow Written",
+      [
+        `Workflow ID: ${definition.id}`,
+        `Path: ${filePath}`,
+        `Directory: ${getWorkflowDirectory()}`,
+        hasFlag(args, "force")
+          ? "Mode: overwrite enabled"
+          : "Mode: create only (use --force to overwrite an existing manifest)",
+      ].join("\n"),
+    );
   },
 
   async status(client) {
