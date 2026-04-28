@@ -1,4 +1,4 @@
-import type { JsonValue, ToolDescriptor } from "./types.js";
+import type {  ToolDescriptor } from "./types.js";
 
 /**
  * Adds indentation to multi-line output blocks for terminal readability.
