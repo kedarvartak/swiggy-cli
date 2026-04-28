@@ -4,9 +4,9 @@ Swiggy Instamart MCP Server - Your AI-powered grocery and essentials shopping as
 
 Swiggy Instamart MCP Server - Your AI-powered grocery and essentials shopping assistant. Get everything from fresh fruits, vegetables, dairy, and staples to snacks, beverages, personal care, electronics, baby care, pet supplies, and more. Browse a wide variety of products across 50+ categories, enjoy great deals, manage your cart, and place orders with quick delivery right to your doorstep.
 
-Endpoint: POST `mcp.swiggy.com/im`
+- Endpoint: POST `mcp.swiggy.com/im`
 
-Tools available: 13
+- Tools available: 13
 
 ## Tools by stage
 
@@ -51,5 +51,7 @@ Tools available: 13
 ## Related
 
 - Authenticate
+
 - Error codes
+
 - Quickstart
