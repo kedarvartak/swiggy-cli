@@ -13,6 +13,12 @@ import { createWorkflowPlan } from "./workflows/planner.js";
 import type { WorkflowDefinition } from "./workflows/types.js";
 
 type CommandHandler = (client: McpClient, args: ParsedArgs) => Promise<string>;
+type ToolCommandDefinition = {
+  command: string;
+  toolName: string;
+  summary: string;
+};
+
 export const localOnlyCommands = new Set<string>([
   "help",
   "workflow:list",
@@ -92,6 +98,79 @@ async function callMappedTool(
   return formatSection(`Tool Result: ${toolName}`, formatJson(result));
 }
 
+const foodToolCommands: ToolCommandDefinition[] = [
+  {
+    command: "food:get-addresses",
+    toolName: "get_addresses",
+    summary: "List saved delivery addresses for Food/Instamart flows.",
+  },
+  {
+    command: "food:search-restaurants",
+    toolName: "search_restaurants",
+    summary: "Search Food delivery restaurants using addressId and query.",
+  },
+  {
+    command: "food:get-restaurant-menu",
+    toolName: "get_restaurant_menu",
+    summary: "Browse a restaurant menu by restaurantId and addressId.",
+  },
+  {
+    command: "food:search-menu",
+    toolName: "search_menu",
+    summary: "Search dishes/menu items by query and addressId.",
+  },
+  {
+    command: "food:update-cart",
+    toolName: "update_food_cart",
+    summary: "Add or update Food cart items.",
+  },
+  {
+    command: "food:get-cart",
+    toolName: "get_food_cart",
+    summary: "Read the current Food cart and available payment methods.",
+  },
+  {
+    command: "food:flush-cart",
+    toolName: "flush_food_cart",
+    summary: "Clear the entire Food cart.",
+  },
+  {
+    command: "food:fetch-coupons",
+    toolName: "fetch_food_coupons",
+    summary: "Fetch Food coupons/offers for a restaurant and address.",
+  },
+  {
+    command: "food:apply-coupon",
+    toolName: "apply_food_coupon",
+    summary: "Apply a Food coupon code to the current cart.",
+  },
+  {
+    command: "food:place-order",
+    toolName: "place_food_order",
+    summary: "Place a Food order using addressId and optional paymentMethod.",
+  },
+  {
+    command: "food:get-orders",
+    toolName: "get_food_orders",
+    summary: "Get active Food delivery orders for an address.",
+  },
+  {
+    command: "food:track-order",
+    toolName: "track_food_order",
+    summary: "Track a Food order by orderId or fetch all active tracked orders.",
+  },
+  {
+    command: "food:get-order-details",
+    toolName: "get_food_order_details",
+    summary: "Get detailed information about a specific Food order.",
+  },
+  {
+    command: "food:report-error",
+    toolName: "report_error",
+    summary: "Report a Food-domain tool failure to Swiggy MCP support.",
+  },
+];
+
 /**
  * Renders workflow catalog entries into a readable marketplace-style list.
  */
@@ -156,6 +235,10 @@ function formatWorkflowDefinition(definition: WorkflowDefinition): string {
 
 export const commandHandlers: Record<string, CommandHandler> = {
   async help() {
+    const foodUsage = foodToolCommands
+      .map((entry) => `  swiggy ${entry.command} --payload '{...}'\n    ${entry.summary}`)
+      .join("\n");
+
     return [
       "Swiggy CLI",
       "",
@@ -167,13 +250,18 @@ export const commandHandlers: Record<string, CommandHandler> = {
       "  swiggy workflow:describe --workflow swiggy.healthy-meal",
       "  swiggy workflow:plan --workflow swiggy.team-offsite-meal-orchestration --payload '{\"teamName\":\"Launch War Room\",\"headcount\":26,\"deliveryWindow\":\"12:30-13:00\",\"officeLocation\":\"Bellandur\",\"dietaryMatrix\":{\"vegetarian\":8,\"vegan\":2,\"jain\":3,\"highProtein\":6},\"budgetCap\":8500}'",
       "  swiggy workflow:write --payload '{\"id\":\"swiggy.weekday-lunch\",\"title\":\"Weekday Lunch\",\"version\":\"0.1.0\",\"app\":\"swiggy\",\"summary\":\"Picks a quick lunch workflow.\",\"difficulty\":\"advanced\",\"tags\":[\"lunch\"],\"inputs\":[],\"tools\":[\"search_restaurants\"],\"steps\":[{\"id\":\"search\",\"title\":\"Search\",\"kind\":\"tool-call\",\"description\":\"Search restaurants.\",\"toolName\":\"search_restaurants\"}],\"guarantees\":[\"Uses MCP tools only.\"],\"limitations\":[\"Demo manifest.\"]}'",
-      "  swiggy restaurants --query \"biryani\" --city bangalore",
-      "  swiggy menu --restaurant-id 12345",
-      "  swiggy cart:view",
-      "  swiggy cart:update --payload '{\"restaurant_id\":\"12345\",\"items\":[{\"id\":\"dish-1\",\"quantity\":2}]}'",
-      "  swiggy order:place --payload '{\"payment_mode\":\"cod\"}'",
-      "  swiggy order:track --order-id ORDER123",
       "  swiggy raw:call --tool search_restaurants --payload '{\"query\":\"biryani\"}'",
+      "",
+      "Food Commands:",
+      foodUsage,
+      "",
+      "Examples:",
+      "  swiggy food:get-addresses",
+      "  swiggy food:search-restaurants --payload '{\"addressId\":\"addr_01HXYZ\",\"query\":\"biryani\"}'",
+      "  swiggy food:get-restaurant-menu --payload '{\"addressId\":\"addr_01HXYZ\",\"restaurantId\":\"rest_42\"}'",
+      "  swiggy food:update-cart --payload '{\"addressId\":\"addr_01HXYZ\",\"restaurantId\":\"rest_42\",\"cartItems\":[]}'",
+      "  swiggy food:place-order --payload '{\"addressId\":\"addr_01HXYZ\"}'",
+      "  swiggy food:track-order --payload '{\"orderId\":\"ord_42\"}'",
       "",
       "Environment:",
       "  SWIGGY_MCP_COMMAND  Required. Command that starts the Swiggy MCP server.",
@@ -224,53 +312,14 @@ export const commandHandlers: Record<string, CommandHandler> = {
     return listTools(client);
   },
 
-  async restaurants(client, args) {
-    const payload = parseJsonOption(args, "payload");
-    const query = optionalValue(args, "query");
-    const city = optionalValue(args, "city");
-    if (query) {
-      payload.query = query;
-    }
-    if (city) {
-      payload.city = city;
-    }
-    return callMappedTool(client, "search_restaurants", payload);
-  },
-
-  async menu(client, args) {
-    const payload = parseJsonOption(args, "payload");
-    const restaurantId = requireValue(args, "restaurant-id");
-    payload.restaurant_id = restaurantId;
-    return callMappedTool(client, "get_restaurant_menu", payload);
-  },
-
-  async "cart:view"(client, args) {
-    const payload = parseJsonOption(args, "payload");
-    return callMappedTool(client, "get_food_cart", payload);
-  },
-
-  async "cart:update"(client, args) {
-    const payload = parseJsonOption(args, "payload");
-    return callMappedTool(client, "update_food_cart", payload);
-  },
-
-  async "order:place"(client, args) {
-    const payload = parseJsonOption(args, "payload");
-    return callMappedTool(client, "place_food_order", payload);
-  },
-
-  async "order:track"(client, args) {
-    const payload = parseJsonOption(args, "payload");
-    const orderId = optionalValue(args, "order-id");
-    if (orderId) {
-      payload.order_id = orderId;
-    }
-    return callMappedTool(client, "track_food_order", payload);
-  },
-
   async "raw:call"(client, args) {
     const toolName = requireValue(args, "tool");
     const payload = parseJsonOption(args, "payload");
     return callMappedTool(client, toolName, payload);
   },
 };
+
+for (const entry of foodToolCommands) {
+  commandHandlers[entry.command] = async (client, args) =>
+    callMappedTool(client, entry.toolName, parseJsonOption(args, "payload"));
+}
