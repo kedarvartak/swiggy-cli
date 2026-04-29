@@ -1,0 +1,111 @@
+{
+  "id": "swiggy.healthy-meal",
+  "title": "Healthy Meal Finder",
+  "version": "0.1.0",
+  "app": "swiggy",
+  "summary": "Finds a meal that satisfies basic nutrition, distance, budget, and restaurant quality constraints before preparing a cart candidate.",
+  "difficulty": "advanced",
+  "tags": ["nutrition", "budget", "distance", "meal-planning"],
+  "inputs": [
+    {
+      "name": "query",
+      "type": "string",
+      "description": "Cuisine or dish seed used to search candidate restaurants.",
+      "required": true,
+      "example": "grilled chicken bowl"
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "description": "City used for restaurant discovery.",
+      "required": false,
+      "example": "Bangalore"
+    },
+    {
+      "name": "maxDistanceKm",
+      "type": "number",
+      "description": "Upper delivery radius allowed for restaurant selection.",
+      "required": true,
+      "example": 7
+    },
+    {
+      "name": "minProteinGrams",
+      "type": "number",
+      "description": "Minimum protein target for the selected meal.",
+      "required": true,
+      "example": 80
+    },
+    {
+      "name": "minRating",
+      "type": "number",
+      "description": "Minimum allowed restaurant rating.",
+      "required": true,
+      "example": 4
+    },
+    {
+      "name": "maxBudget",
+      "type": "number",
+      "description": "Optional total budget cap for the order.",
+      "required": false,
+      "example": 500
+    }
+  ],
+  "tools": ["search_restaurants", "get_restaurant_menu", "update_food_cart", "get_food_cart"],
+  "steps": [
+    {
+      "id": "capture-constraints",
+      "title": "Capture meal constraints",
+      "kind": "input",
+      "description": "Collect cuisine, protein, budget, rating, and distance constraints.",
+      "produces": ["normalized constraints"]
+    },
+    {
+      "id": "search-restaurants",
+      "title": "Search nearby restaurants",
+      "kind": "tool-call",
+      "description": "Discover candidate restaurants from the Swiggy MCP tool surface.",
+      "toolName": "search_restaurants",
+      "argumentHints": ["query", "city"],
+      "produces": ["candidate restaurants"]
+    },
+    {
+      "id": "inspect-menus",
+      "title": "Inspect restaurant menus",
+      "kind": "tool-call",
+      "description": "Review menu items for each shortlisted restaurant and estimate nutrition fit.",
+      "toolName": "get_restaurant_menu",
+      "argumentHints": ["restaurant_id"],
+      "produces": ["shortlisted meals"]
+    },
+    {
+      "id": "rank-options",
+      "title": "Rank valid meal combinations",
+      "kind": "decision",
+      "description": "Filter by protein, budget, distance, and rating, then rank remaining combinations.",
+      "produces": ["best candidate meal"]
+    },
+    {
+      "id": "prepare-cart",
+      "title": "Prepare a draft cart",
+      "kind": "tool-call",
+      "description": "Write the chosen meal into the cart for review before checkout.",
+      "toolName": "update_food_cart",
+      "argumentHints": ["restaurant_id", "items"]
+    },
+    {
+      "id": "review-cart",
+      "title": "Review cart summary",
+      "kind": "tool-call",
+      "description": "Read back the cart summary for confirmation.",
+      "toolName": "get_food_cart"
+    }
+  ],
+  "guarantees": [
+    "Keeps tool calls within the existing Swiggy MCP surface.",
+    "Makes constraint handling explicit before cart mutation."
+  ],
+  "limitations": [
+    "Needs menu-level nutrition data or reliable proxies to score protein accurately.",
+    "Does not place the final order automatically in the current implementation."
+  ]
+}
