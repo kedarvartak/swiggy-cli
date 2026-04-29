@@ -1,18 +1,10 @@
-import type { McpClient } from "./mcp-client.js";
+import type { BackendClient } from "./backend-client.js";
 import { formatJson, formatSection, formatTools } from "./render.js";
 import type { ParsedArgs } from "./parser.js";
 import type { JsonValue } from "./types.js";
-import {
-  getWorkflowDefinition,
-  getWorkflowDirectory,
-  listWorkflowDefinitions,
-  validateWorkflowDefinition,
-  writeWorkflowDefinition,
-} from "./workflows/catalog.js";
-import { createWorkflowPlan } from "./workflows/planner.js";
 import type { WorkflowDefinition } from "./workflows/types.js";
 
-type CommandHandler = (client: McpClient, args: ParsedArgs) => Promise<string>;
+type CommandHandler = (client: BackendClient, args: ParsedArgs) => Promise<string>;
 type ToolCommandDefinition = {
   command: string;
   toolName: string;
@@ -21,10 +13,6 @@ type ToolCommandDefinition = {
 
 export const localOnlyCommands = new Set<string>([
   "help",
-  "workflow:list",
-  "workflow:describe",
-  "workflow:plan",
-  "workflow:write",
 ]);
 
 /**
@@ -73,7 +61,7 @@ function parseJsonOption(args: ParsedArgs, key: string): Record<string, JsonValu
 /**
  * Lists the tools currently advertised by the connected MCP server.
  */
-async function listTools(client: McpClient): Promise<string> {
+async function listTools(client: BackendClient): Promise<string> {
   const tools = await client.listTools();
   return formatSection("Available Tools", formatTools(tools));
 }
@@ -81,8 +69,8 @@ async function listTools(client: McpClient): Promise<string> {
 /**
  * Shows the result of the MCP initialization handshake.
  */
-async function status(client: McpClient): Promise<string> {
-  const details = await client.initialize();
+async function status(client: BackendClient): Promise<string> {
+  const details = await client.status();
   return formatSection("MCP Status", formatJson(details));
 }
 
@@ -90,7 +78,7 @@ async function status(client: McpClient): Promise<string> {
  * Invokes a specific Swiggy MCP tool and formats the result for terminal output.
  */
 async function callMappedTool(
-  client: McpClient,
+  client: BackendClient,
   toolName: string,
   args: Record<string, JsonValue>,
 ): Promise<string> {
@@ -176,7 +164,7 @@ const foodToolCommands: ToolCommandDefinition[] = [
  */
 function formatWorkflowCatalog(definitions: WorkflowDefinition[]): string {
   if (definitions.length === 0) {
-    return `No workflows found in ${getWorkflowDirectory()}.`;
+    return "No workflows found in the shared workflow catalog.";
   }
 
   return definitions
@@ -264,39 +252,44 @@ export const commandHandlers: Record<string, CommandHandler> = {
       "  swiggy food:track-order --payload '{\"orderId\":\"ord_42\"}'",
       "",
       "Environment:",
-      "  SWIGGY_MCP_COMMAND  Required. Command that starts the Swiggy MCP server.",
-      "  SWIGGY_MCP_ARGS     Optional. Space-delimited args for the MCP server command.",
-      "  See .env.example for the local MCP configuration.",
+      "  SWIGGY_BACKEND_URL  Optional. Backend base URL. Defaults to http://127.0.0.1:8000.",
+      "  The backend owns MCP connectivity and shared workflow logic.",
     ].join("\n");
   },
 
-  async "workflow:list"() {
-    return formatSection("Available Workflows", formatWorkflowCatalog(await listWorkflowDefinitions()));
+  async "workflow:list"(client) {
+    return formatSection(
+      "Available Workflows",
+      formatWorkflowCatalog(await client.listWorkflowDefinitions()),
+    );
   },
 
-  async "workflow:describe"(_client, args) {
+  async "workflow:describe"(client, args) {
     const workflowId = requireValue(args, "workflow");
-    return formatSection("Workflow Definition", formatWorkflowDefinition(await getWorkflowDefinition(workflowId)));
+    return formatSection(
+      "Workflow Definition",
+      formatWorkflowDefinition(await client.getWorkflowDefinition(workflowId)),
+    );
   },
 
-  async "workflow:plan"(_client, args) {
+  async "workflow:plan"(client, args) {
     const workflowId = requireValue(args, "workflow");
     const payload = parseJsonOption(args, "payload");
-    const plan = createWorkflowPlan(await getWorkflowDefinition(workflowId), payload);
+    const plan = await client.createWorkflowPlan(workflowId, payload);
     return formatSection("Workflow Plan", formatJson(plan));
   },
 
-  async "workflow:write"(_client, args) {
+  async "workflow:write"(client, args) {
     const payload = parseJsonOption(args, "payload");
-    const definition = validateWorkflowDefinition(payload, "command payload");
-    const filePath = await writeWorkflowDefinition(definition, { force: hasFlag(args, "force") });
+    const definition = payload as WorkflowDefinition;
+    const result = await client.writeWorkflowDefinition(definition, { force: hasFlag(args, "force") });
 
     return formatSection(
       "Workflow Written",
       [
-        `Workflow ID: ${definition.id}`,
-        `Path: ${filePath}`,
-        `Directory: ${getWorkflowDirectory()}`,
+        `Workflow ID: ${result.workflowId}`,
+        `Path: ${result.path}`,
+        "Directory: shared repo-level workflows/",
         hasFlag(args, "force")
           ? "Mode: overwrite enabled"
           : "Mode: create only (use --force to overwrite an existing manifest)",

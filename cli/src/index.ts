@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import process from "node:process";
+import { BackendClient } from "./backend-client.js";
 import { commandHandlers, localOnlyCommands } from "./commands.js";
-import { loadMcpConfig } from "./config.js";
-import { McpClient } from "./mcp-client.js";
+import { loadBackendConfig } from "./config.js";
 import { parseArgv } from "./parser.js";
 
 /**
@@ -25,14 +25,14 @@ async function main(): Promise<void> {
     return;
   }
 
-  const client = new McpClient(loadMcpConfig());
+  const client = new BackendClient(loadBackendConfig());
 
   try {
     await client.initialize();
     const output = await handler(client, parsed);
     process.stdout.write(`${output}\n`);
   } finally {
-    await client.close();
+    // Backend HTTP client is stateless.
   }
 }
 

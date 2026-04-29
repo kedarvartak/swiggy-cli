@@ -35,22 +35,20 @@ This is useful as a reusable workflow because the hard part is not just expressi
 
 ## What Is In This Repo
 
-- `src/` contains the TypeScript CLI, MCP client, current workflow logic, and local development helpers
-- `docs/` contains the architecture, roadmap, and change history for the pivot
-- `.env.example` lists the runtime configuration used by the CLI and local integrations
+- `src/` contains the TypeScript CLI client and terminal-facing logic
+- `../backend/` contains the shared backend, MCP integration, and backend-owned development helpers
+- `../docs/` contains the architecture, roadmap, and change history for the pivot
+- `.env.example` lists the backend URL used by the CLI
 - `dist/` is the build output created after `npm run build`
 
 ## Current Shape Of The Codebase
 
-The repository is still organized around a practical execution path:
+The CLI now acts as a thin client:
 
 1. `src/index.ts` starts the CLI
-2. `src/commands.ts` routes user commands to local logic or the MCP client
-3. `src/mcp-client.ts` talks to the external Swiggy MCP server
-4. `src/workflows/` contains reusable workflow definitions and planning logic
-5. `src/dev/mock-swiggy-mcp.ts` exposes mock MCP tools for local development and demos
-
-That means the docs now describe both the current implementation and the intended pivot toward reusable workflow packages.
+2. `src/commands.ts` routes user commands to backend APIs
+3. `src/backend-client.ts` talks to the shared backend over HTTP
+4. workflow logic and MCP connectivity live in `../backend/`
 
 ## Documentation
 
@@ -63,22 +61,19 @@ That means the docs now describe both the current implementation and the intende
 ```bash
 npm install
 npm run build
-export SWIGGY_MCP_COMMAND=node
-export SWIGGY_MCP_ARGS="dist/dev/mock-swiggy-mcp.js"
+export SWIGGY_BACKEND_URL=http://127.0.0.1:8000
 node dist/index.js help
 ```
 
 ## Environment
 
-The repository uses environment variables for runtime configuration and integration secrets. The full set of example values is in `.env.example`.
+The CLI uses environment variables for backend connectivity. The full set of example values is in `.env.example`.
 
-Important variables today:
+Important variable today:
 
-- `SWIGGY_MCP_COMMAND`
-- `SWIGGY_MCP_ARGS`
+- `SWIGGY_BACKEND_URL`
 
 ## Local Utilities
 
-- `npm run doctor` checks local configuration
-- `npm run mock:mcp` starts the mock MCP server
-
+- `npm run doctor` checks CLI to backend connectivity
+- the backend owns the mock MCP server at `../backend/dev/mock_swiggy_mcp.py`
