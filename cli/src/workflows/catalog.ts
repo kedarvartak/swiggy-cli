@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 import type { JsonValue } from "../types.js";
 import type { WorkflowDefinition, WorkflowInputField, WorkflowStepDefinition } from "./types.js";
@@ -13,7 +14,10 @@ export function getWorkflowDirectory(): string {
     return path.resolve(configured);
   }
 
-  return path.resolve(process.cwd(), "workflows");
+  const packageRelativeSharedDirectory = fileURLToPath(
+    new URL("../../../workflows", import.meta.url),
+  );
+  return path.resolve(packageRelativeSharedDirectory);
 }
 
 /**
