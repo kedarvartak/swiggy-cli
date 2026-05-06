@@ -14,22 +14,6 @@ function LocationIcon() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" style={heroStyles.icon}>
-      <use href="/core/sprite-n2wVr1Ar.svg#search20" xlinkHref="/core/sprite-n2wVr1Ar.svg#search20" />
-    </svg>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" style={heroStyles.sparkleIcon}>
-      <path d="M232,128a8,8,0,0,1-8,8,88.1,88.1,0,0,0-88,88,8,8,0,0,1-16,0,88.1,88.1,0,0,0-88-88,8,8,0,0,1,0-16,88.1,88.1,0,0,0,88-88,8,8,0,0,1,16,0,88.1,88.1,0,0,0,88,88A8,8,0,0,1,232,128Z" />
-    </svg>
-  );
-}
-
 function ArrowIcon() {
   return (
     <svg viewBox="0 0 20 22" fill="currentColor" aria-hidden="true" style={heroStyles.ctaIcon}>
@@ -38,7 +22,11 @@ function ArrowIcon() {
   );
 }
 
-export function HeroSection() {
+type HeroSectionProps = {
+  onTryWorkflows?: () => void;
+};
+
+export function HeroSection({ onTryWorkflows }: HeroSectionProps) {
   return (
     <section style={heroStyles.section}>
       <img alt="" src={heroImages.veggies} style={heroStyles.sideImageLeft} />
@@ -48,7 +36,7 @@ export function HeroSection() {
         <div style={heroStyles.brand}>
           <img alt="Swiggy" src={heroImages.logo} style={heroStyles.logo} />
         </div>
-        <button style={heroStyles.ctaButton} type="button">
+        <button style={heroStyles.ctaButton} onClick={onTryWorkflows} type="button">
           <span style={heroStyles.ctaText}>Try Workflows</span>
           <ArrowIcon />
         </button>
@@ -59,13 +47,7 @@ export function HeroSection() {
           <>
             Order food & groceries with{" "}
             <span style={heroStyles.aiAccent}>
-              <span style={heroStyles.sparkleLeft}>
-                <SparkleIcon />
-              </span>
               <span style={heroStyles.aiText}>AI</span>
-              <span style={heroStyles.sparkleRight}>
-                <SparkleIcon />
-              </span>
             </span>
             <br />
             Discover best restaurants. Swiggy it!
@@ -90,7 +72,7 @@ export function HeroSection() {
           </div>
           <div style={heroStyles.searchBox}>
             <div style={heroStyles.searchBoxTextWrap}>
-              <SearchIcon />
+              <LocationIcon />
               <div style={{ width: "100%" }}>
                 <div style={heroStyles.fieldLabel}>Longitude</div>
                 <input
