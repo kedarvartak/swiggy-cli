@@ -102,6 +102,10 @@ export const globalStyleText = `
     background: #ffffff;
   }
 
+  #root {
+    min-height: 100vh;
+  }
+
   button,
   input,
   textarea,
@@ -116,6 +120,28 @@ export const globalStyleText = `
 
   ::selection {
     background: rgba(255, 82, 0, 0.2);
+  }
+
+  .workflow-sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 82, 0, 0.22) transparent;
+  }
+
+  .workflow-sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .workflow-sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .workflow-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 82, 0, 0.18);
+    border-radius: 999px;
+  }
+
+  .workflow-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 82, 0, 0.28);
   }
 
   @keyframes floatUp {

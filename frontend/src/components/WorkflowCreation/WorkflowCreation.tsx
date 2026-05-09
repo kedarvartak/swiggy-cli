@@ -1,136 +1,261 @@
-import type { DragEvent, MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  Background,
+  BackgroundVariant,
+  Handle,
+  MarkerType,
+  Position,
+  ReactFlow,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type NodeTypes,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 import { workflowCreationStyles as styles } from "./styles";
 
 type DomainKey = "food" | "dineout" | "instamart";
 type NodeState = "draft" | "running" | "done" | "waiting";
 
-type ToolCard = {
-  name: string;
-  label: string;
-  stage: string;
-  description: string;
-};
-
-type CanvasNode = {
+type WorkflowStep = {
   id: string;
   toolName: string;
   title: string;
   stage: string;
   domain: DomainKey;
-  x: number;
-  y: number;
   state: NodeState;
 };
 
-const toolGroups: Record<
+type FlowNodeData = {
+  title: string;
+  toolName: string;
+  stage: string;
+  state: NodeState;
+  isSelected: boolean;
+};
+
+const domainConfigs: Record<
   DomainKey,
   {
     label: string;
-    tools: ToolCard[];
+    subtitle: string;
+    audience: string;
+    guardrail: string;
+    toolCount: number;
   }
 > = {
   food: {
     label: "Food",
-    tools: [
-      { name: "get_addresses", label: "Get addresses", stage: "Discover", description: "Load saved delivery addresses." },
-      { name: "search_restaurants", label: "Search restaurants", stage: "Discover", description: "Find restaurants for delivery." },
-      { name: "search_menu", label: "Search menu", stage: "Discover", description: "Search dishes and menu items." },
-      { name: "get_restaurant_menu", label: "Get restaurant menu", stage: "Discover", description: "Browse restaurant menu categories." },
-      { name: "update_food_cart", label: "Update food cart", stage: "Cart", description: "Add or update food items in cart." },
-      { name: "get_food_cart", label: "Get food cart", stage: "Cart", description: "Inspect active food cart." },
-      { name: "fetch_food_coupons", label: "Fetch food coupons", stage: "Cart", description: "Get offers for the current cart." },
-      { name: "apply_food_coupon", label: "Apply food coupon", stage: "Cart", description: "Apply a coupon to the cart." },
-      { name: "flush_food_cart", label: "Flush food cart", stage: "Cart", description: "Clear the food cart." },
-      { name: "place_food_order", label: "Place food order", stage: "Order", description: "Place a food order." },
-      { name: "get_food_orders", label: "Get food orders", stage: "Track", description: "Fetch active food orders." },
-      { name: "get_food_order_details", label: "Get food order details", stage: "Track", description: "Inspect one order deeply." },
-      { name: "track_food_order", label: "Track food order", stage: "Track", description: "Track delivery progress." },
-      { name: "report_error", label: "Report error", stage: "Support", description: "Escalate MCP errors." },
-    ],
+    subtitle: "Repeat meal decisions with budget and approval rules already baked in.",
+    audience: "Quick meals",
+    guardrail: "Pause before final order placement",
+    toolCount: 14,
   },
   dineout: {
     label: "Dineout",
-    tools: [
-      { name: "get_saved_locations", label: "Get saved locations", stage: "Find", description: "Load dineout search locations." },
-      { name: "search_restaurants_dineout", label: "Search restaurants", stage: "Find", description: "Find dineout venues." },
-      { name: "get_restaurant_details", label: "Get restaurant details", stage: "Find", description: "Inspect timings, deals, and address." },
-      { name: "get_available_slots", label: "Get available slots", stage: "Reserve", description: "Check live reservation slots." },
-      { name: "create_cart", label: "Create booking cart", stage: "Reserve", description: "Prepare reservation state." },
-      { name: "book_table", label: "Book table", stage: "Reserve", description: "Confirm a table booking." },
-      { name: "get_booking_status", label: "Get booking status", stage: "Manage", description: "Track reservation status." },
-      { name: "report_error", label: "Report error", stage: "Support", description: "Escalate MCP errors." },
-    ],
+    subtitle: "Shape reservation workflows around plan, slot, and reviewable booking intent.",
+    audience: "Plans and reservations",
+    guardrail: "Hold on the booking cart until approval",
+    toolCount: 8,
   },
   instamart: {
     label: "Instamart",
-    tools: [
-      { name: "get_addresses", label: "Get addresses", stage: "Discover", description: "Load grocery delivery addresses." },
-      { name: "create_address", label: "Create address", stage: "Discover", description: "Add a new address." },
-      { name: "delete_address", label: "Delete address", stage: "Discover", description: "Remove a saved address." },
-      { name: "search_products", label: "Search products", stage: "Discover", description: "Find products and variants." },
-      { name: "your_go_to_items", label: "Your go-to items", stage: "Discover", description: "Fetch frequent grocery items." },
-      { name: "update_cart", label: "Update cart", stage: "Cart", description: "Build or replace grocery cart." },
-      { name: "get_cart", label: "Get cart", stage: "Cart", description: "Inspect Instamart cart." },
-      { name: "clear_cart", label: "Clear cart", stage: "Cart", description: "Clear grocery cart." },
-      { name: "checkout", label: "Checkout", stage: "Order", description: "Place grocery order." },
-      { name: "get_orders", label: "Get orders", stage: "Track", description: "Fetch grocery orders." },
-      { name: "get_order_details", label: "Get order details", stage: "Track", description: "Inspect one order deeply." },
-      { name: "track_order", label: "Track order", stage: "Track", description: "Track grocery delivery." },
-      { name: "report_error", label: "Report error", stage: "Support", description: "Escalate MCP errors." },
-    ],
+    subtitle: "Turn repeat restocking into saved grocery playbooks instead of rebuilt carts.",
+    audience: "Restocks and staples",
+    guardrail: "Check substitutions and budget before checkout",
+    toolCount: 13,
   },
 };
 
-const promptSuggestions: Record<DomainKey, string> = {
-  food: "Find the best biryani near Koramangala, inspect menu, add the top option to cart, then pause.",
-  dineout: "Find dinner places in Indiranagar, check 8pm slots for 4 people, and prepare a booking.",
-  instamart: "Build a weekly grocery cart for 2 people under ₹1800 with essentials and snacks.",
-};
-
-const promptTemplates: Record<DomainKey, Omit<CanvasNode, "id" | "x" | "y" | "state">[]> = {
+const promptSuggestions: Record<DomainKey, string[]> = {
   food: [
-    { toolName: "get_addresses", title: "Resolve delivery context", stage: "Discover", domain: "food" },
-    { toolName: "search_restaurants", title: "Search restaurant options", stage: "Discover", domain: "food" },
-    { toolName: "get_restaurant_menu", title: "Inspect menu", stage: "Discover", domain: "food" },
-    { toolName: "update_food_cart", title: "Prepare cart", stage: "Cart", domain: "food" },
-    { toolName: "get_food_cart", title: "Await approval", stage: "Cart", domain: "food" },
+    "Order my usual weekday lunch under ₹250 and stop before payment.",
+    "Compare biryani options near Koramangala, build the best value cart, then wait.",
+    "Find a high-protein dinner under 30 minutes with one vegetarian option.",
   ],
   dineout: [
-    { toolName: "get_saved_locations", title: "Resolve location", stage: "Find", domain: "dineout" },
-    { toolName: "search_restaurants_dineout", title: "Search venues", stage: "Find", domain: "dineout" },
-    { toolName: "get_available_slots", title: "Check slots", stage: "Reserve", domain: "dineout" },
+    "Find a dinner place for 4 in Indiranagar tonight, shortlist top options, and hold a booking.",
+    "Plan a date-night reservation with indoor seating and a spend-friendly deal.",
+    "Check 8pm table availability near MG Road and prepare the best booking option.",
+  ],
+  instamart: [
+    "Restock weekly groceries for 2 people under ₹1800 and allow smart substitutions.",
+    "Refill breakfast staples and fruit for the week with a 20-minute delivery preference.",
+    "Rebuild my monthly pantry basics and pause before checkout.",
+  ],
+};
+
+const promptTemplates: Record<DomainKey, Omit<WorkflowStep, "id" | "state">[]> = {
+  food: [
+    { toolName: "get_addresses", title: "Resolve delivery context", stage: "Discover", domain: "food" },
+    { toolName: "search_restaurants", title: "Rank likely restaurant picks", stage: "Discover", domain: "food" },
+    { toolName: "get_restaurant_menu", title: "Inspect menu depth", stage: "Discover", domain: "food" },
+    { toolName: "update_food_cart", title: "Prepare the cart", stage: "Cart", domain: "food" },
+    { toolName: "get_food_cart", title: "Pause for approval", stage: "Approval", domain: "food" },
+  ],
+  dineout: [
+    { toolName: "get_saved_locations", title: "Resolve plan location", stage: "Find", domain: "dineout" },
+    { toolName: "search_restaurants_dineout", title: "Shortlist venues", stage: "Find", domain: "dineout" },
+    { toolName: "get_available_slots", title: "Check live reservation slots", stage: "Reserve", domain: "dineout" },
     { toolName: "create_cart", title: "Prepare booking state", stage: "Reserve", domain: "dineout" },
-    { toolName: "book_table", title: "Await approval", stage: "Reserve", domain: "dineout" },
+    { toolName: "book_table", title: "Pause for approval", stage: "Approval", domain: "dineout" },
   ],
   instamart: [
     { toolName: "get_addresses", title: "Resolve grocery address", stage: "Discover", domain: "instamart" },
-    { toolName: "search_products", title: "Search products", stage: "Discover", domain: "instamart" },
     { toolName: "your_go_to_items", title: "Pull repeat items", stage: "Discover", domain: "instamart" },
-    { toolName: "update_cart", title: "Build grocery cart", stage: "Cart", domain: "instamart" },
-    { toolName: "get_cart", title: "Await approval", stage: "Cart", domain: "instamart" },
+    { toolName: "search_products", title: "Fill missing essentials", stage: "Discover", domain: "instamart" },
+    { toolName: "update_cart", title: "Build the grocery cart", stage: "Cart", domain: "instamart" },
+    { toolName: "get_cart", title: "Pause for approval", stage: "Approval", domain: "instamart" },
   ],
+};
+
+const guardrailCards: Record<DomainKey, { label: string; value: string }[]> = {
+  food: [
+    { label: "Budget cap", value: "₹250 to ₹450" },
+    { label: "Preference bias", value: "Prioritize usual orders" },
+    { label: "Final action", value: "Manual approval" },
+  ],
+  dineout: [
+    { label: "Party setup", value: "2 to 6 people" },
+    { label: "Time sensitivity", value: "Slot-first ranking" },
+    { label: "Final action", value: "Manual approval" },
+  ],
+  instamart: [
+    { label: "Budget cap", value: "₹1,500 to ₹2,500" },
+    { label: "Substitutions", value: "Allow like-for-like swaps" },
+    { label: "Final action", value: "Manual approval" },
+  ],
+};
+
+const nodeStateLabel: Record<NodeState, string> = {
+  draft: "Drafted",
+  running: "Executing",
+  done: "Completed",
+  waiting: "Awaiting approval",
+};
+
+const FLOW_NODE_WIDTH = 248;
+const FLOW_NODE_HEIGHT = 132;
+const FLOW_COLUMN_GAP = 88;
+const FLOW_ROW_GAP = 156;
+
+function getColumnCount(nodeCount: number) {
+  if (nodeCount <= 3) {
+    return nodeCount;
+  }
+
+  if (nodeCount <= 6) {
+    return 3;
+  }
+
+  return 4;
+}
+
+function layoutSteps(steps: WorkflowStep[]) {
+  const columnCount = Math.max(getColumnCount(steps.length), 1);
+
+  return steps.map((step, index) => {
+    const row = Math.floor(index / columnCount);
+    const rowStart = row * columnCount;
+    const rowItems = Math.min(columnCount, steps.length - rowStart);
+    const indexInRow = index - rowStart;
+    const rowWidth = rowItems * FLOW_NODE_WIDTH + Math.max(rowItems - 1, 0) * FLOW_COLUMN_GAP;
+    const rowOffset = -rowWidth / 2 + FLOW_NODE_WIDTH / 2;
+
+    return {
+      ...step,
+      x: rowOffset + indexInRow * (FLOW_NODE_WIDTH + FLOW_COLUMN_GAP),
+      y: row * FLOW_ROW_GAP,
+    };
+  });
+}
+
+function buildFlowEdges(steps: WorkflowStep[]) {
+  return steps.slice(0, -1).map((step, index) => {
+    const nextStep = steps[index + 1];
+    const isActivePath = step.state === "done" || step.state === "running";
+
+    return {
+      id: `edge-${step.id}-${nextStep.id}`,
+      source: step.id,
+      target: nextStep.id,
+      type: "smoothstep",
+      animated: step.state === "running",
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+        color: isActivePath ? "#FF5200" : "rgba(90, 95, 109, 0.3)",
+      },
+      style: {
+        stroke: isActivePath ? "#FF5200" : "rgba(90, 95, 109, 0.24)",
+        strokeWidth: isActivePath ? 3 : 2,
+      },
+    } satisfies Edge;
+  });
+}
+
+function FlowWorkflowNode({ data }: NodeProps<Node<FlowNodeData>>) {
+  return (
+    <div style={data.isSelected ? styles.flowNodeCardActive : styles.flowNodeCard}>
+      <Handle position={Position.Left} style={styles.flowHandle} type="target" />
+      <div style={styles.flowNodeTopRow}>
+        <span style={styles.flowNodeStage}>{data.stage}</span>
+        <span
+          style={
+            data.state === "done"
+              ? styles.nodeStateDone
+              : data.state === "running"
+                ? styles.nodeStateRunning
+                : data.state === "waiting"
+                  ? styles.nodeStateWaiting
+                  : styles.nodeStateDraft
+          }
+        >
+          {nodeStateLabel[data.state]}
+        </span>
+      </div>
+      <div style={styles.flowNodeTitle}>{data.title}</div>
+      <div style={styles.flowNodeTool}>{data.toolName}</div>
+      <Handle position={Position.Right} style={styles.flowHandle} type="source" />
+    </div>
+  );
+}
+
+const nodeTypes: NodeTypes = {
+  workflowNode: FlowWorkflowNode,
 };
 
 type WorkflowCreationProps = {
   onBack?: () => void;
 };
 
-export function WorkflowCreation(_: WorkflowCreationProps) {
+export function WorkflowCreation({ onBack }: WorkflowCreationProps) {
   const [activeDomain, setActiveDomain] = useState<DomainKey>("food");
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [prompt, setPrompt] = useState(promptSuggestions.food);
-  const [nodes, setNodes] = useState<CanvasNode[]>([]);
+  const [prompt, setPrompt] = useState(promptSuggestions.food[0]);
+  const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [generationPhase, setGenerationPhase] = useState<"idle" | "drafting" | "ready">("idle");
   const [executionIndex, setExecutionIndex] = useState(-1);
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isCompact, setIsCompact] = useState(() => window.innerWidth < 1180);
 
   useEffect(() => {
-    setPrompt(promptSuggestions[activeDomain]);
+    setPrompt(promptSuggestions[activeDomain][0]);
+    setSteps([]);
+    setSelectedNodeId(null);
+    setGenerationPhase("idle");
+    setExecutionIndex(-1);
   }, [activeDomain]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsCompact(window.innerWidth < 1180);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (generationPhase !== "drafting") {
@@ -138,16 +263,14 @@ export function WorkflowCreation(_: WorkflowCreationProps) {
     }
 
     const timeout = window.setTimeout(() => {
-      const draftNodes = promptTemplates[activeDomain].map((step, index) => ({
+      const draftSteps = promptTemplates[activeDomain].map((step, index) => ({
         ...step,
         id: `${activeDomain}-${Date.now()}-${index}`,
-        x: 120 + index * 210,
-        y: 170 + (index % 2) * 110,
         state: "draft" as NodeState,
       }));
 
-      setNodes(draftNodes);
-      setSelectedNodeId(draftNodes[0]?.id ?? null);
+      setSteps(draftSteps);
+      setSelectedNodeId(draftSteps[0]?.id ?? null);
       setGenerationPhase("ready");
       setExecutionIndex(0);
     }, 900);
@@ -156,13 +279,13 @@ export function WorkflowCreation(_: WorkflowCreationProps) {
   }, [activeDomain, generationPhase]);
 
   useEffect(() => {
-    if (generationPhase !== "ready" || executionIndex < 0 || nodes.length === 0) {
+    if (generationPhase !== "ready" || executionIndex < 0 || steps.length === 0) {
       return undefined;
     }
 
     const timeout = window.setTimeout(() => {
       setExecutionIndex((current) => {
-        if (current >= nodes.length - 1) {
+        if (current >= steps.length - 1) {
           return current;
         }
 
@@ -171,261 +294,288 @@ export function WorkflowCreation(_: WorkflowCreationProps) {
     }, 900);
 
     return () => window.clearTimeout(timeout);
-  }, [executionIndex, generationPhase, nodes.length]);
+  }, [executionIndex, generationPhase, steps.length]);
 
   useEffect(() => {
-    setNodes((current) =>
-      current.map((node, index) => {
+    setSteps((current) =>
+      current.map((step, index) => {
         if (generationPhase !== "ready") {
-          return { ...node, state: "draft" };
+          return { ...step, state: "draft" };
         }
 
         if (index < executionIndex) {
-          return { ...node, state: "done" };
+          return { ...step, state: "done" };
         }
 
         if (index === executionIndex && index < current.length - 1) {
-          return { ...node, state: "running" };
+          return { ...step, state: "running" };
         }
 
         if (index === current.length - 1 && executionIndex >= current.length - 1) {
-          return { ...node, state: "waiting" };
+          return { ...step, state: "waiting" };
         }
 
-        return { ...node, state: "draft" };
+        return { ...step, state: "draft" };
       }),
     );
   }, [executionIndex, generationPhase]);
 
-  useEffect(() => {
-    if (!draggingNodeId) {
-      return undefined;
-    }
+  const activeGroup = domainConfigs[activeDomain];
+  const selectedStep = steps.find((step) => step.id === selectedNodeId) ?? null;
+  const completedStepCount = steps.filter((step) => step.state === "done").length;
 
-    const handleMouseMove = (event: MouseEvent) => {
-      setNodes((current) =>
-        current.map((node) =>
-          node.id === draggingNodeId
-            ? {
-                ...node,
-                x: Math.max(24, event.clientX - dragOffset.x),
-                y: Math.max(92, event.clientY - dragOffset.y),
-              }
-            : node,
-        ),
-      );
-    };
+  const flowNodes = useMemo<Node<FlowNodeData>[]>(() => {
+    return layoutSteps(steps).map((step) => ({
+      id: step.id,
+      type: "workflowNode",
+      position: { x: step.x, y: step.y },
+      draggable: false,
+      selectable: true,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+      data: {
+        title: step.title,
+        toolName: step.toolName,
+        stage: step.stage,
+        state: step.state,
+        isSelected: step.id === selectedNodeId,
+      },
+    }));
+  }, [selectedNodeId, steps]);
 
-    const handleMouseUp = () => {
-      setDraggingNodeId(null);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [dragOffset.x, dragOffset.y, draggingNodeId]);
-
-  const activeGroup = toolGroups[activeDomain];
-  const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
-
-  const groupedTools = useMemo(() => {
-    const map = new Map<string, ToolCard[]>();
-
-    activeGroup.tools.forEach((tool) => {
-      const list = map.get(tool.stage) ?? [];
-      list.push(tool);
-      map.set(tool.stage, list);
-    });
-
-    return Array.from(map.entries());
-  }, [activeGroup.tools]);
-
-  const addToolNode = (tool: ToolCard) => {
-    const nextNode: CanvasNode = {
-      id: `${tool.name}-${Date.now()}`,
-      toolName: tool.name,
-      title: tool.label,
-      stage: tool.stage,
-      domain: activeDomain,
-      x: 96 + (nodes.length % 4) * 220,
-      y: 120 + Math.floor(nodes.length / 4) * 120,
-      state: "draft",
-    };
-
-    setNodes((current) => [...current, nextNode]);
-    setSelectedNodeId(nextNode.id);
-    setGenerationPhase("idle");
-    setExecutionIndex(-1);
-  };
-
-  const handleCanvasDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const toolName = event.dataTransfer.getData("text/plain");
-    const tool = activeGroup.tools.find((entry) => entry.name === toolName);
-
-    if (!tool) {
-      return;
-    }
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const nextNode: CanvasNode = {
-      id: `${tool.name}-${Date.now()}`,
-      toolName: tool.name,
-      title: tool.label,
-      stage: tool.stage,
-      domain: activeDomain,
-      x: event.clientX - rect.left - 90,
-      y: event.clientY - rect.top - 36,
-      state: "draft",
-    };
-
-    setNodes((current) => [...current, nextNode]);
-    setSelectedNodeId(nextNode.id);
-    setGenerationPhase("idle");
-    setExecutionIndex(-1);
-  };
+  const flowEdges = useMemo(() => buildFlowEdges(steps), [steps]);
 
   const handlePromptDraft = () => {
     setGenerationPhase("drafting");
     setExecutionIndex(-1);
   };
 
-  const startNodeDrag = (event: ReactMouseEvent<HTMLDivElement>, nodeId: string) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    setDraggingNodeId(nodeId);
-    setDragOffset({
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    });
-    setSelectedNodeId(nodeId);
+  const resetWorkflow = () => {
+    setSteps([]);
+    setSelectedNodeId(null);
+    setGenerationPhase("idle");
+    setExecutionIndex(-1);
   };
 
   return (
-    <main style={styles.page}>
-      <aside style={isSidebarCollapsed ? styles.sidebarCollapsed : styles.sidebar}>
+    <main
+      style={{
+        ...styles.page,
+        gridTemplateColumns: isCompact ? "1fr" : "440px minmax(0, 1fr)",
+      }}
+    >
+      <aside style={isCompact ? styles.sidebarCompact : styles.sidebar}>
         <div style={styles.sidebarTopRow}>
-          {!isSidebarCollapsed ? <p style={styles.sidebarTitle}>Workflow creation</p> : null}
-          <button
-            onClick={() => setIsSidebarCollapsed((current) => !current)}
-            style={styles.collapseButton}
-            type="button"
-          >
-            {isSidebarCollapsed ? ">" : "<"}
-          </button>
-        </div>
-
-        <div style={styles.domainTabs}>
-          {(Object.entries(toolGroups) as [DomainKey, (typeof toolGroups)[DomainKey]][]).map(([key, group]) => (
-            <button
-              key={key}
-              onClick={() => setActiveDomain(key)}
-              style={key === activeDomain ? styles.domainTabActive : styles.domainTab}
-              type="button"
-            >
-              {isSidebarCollapsed ? group.label.slice(0, 1) : group.label}
-            </button>
-          ))}
-        </div>
-
-        {!isSidebarCollapsed ? (
-          <div style={styles.sidebarBody}>
-            {groupedTools.map(([stage, tools]) => (
-              <section key={stage} style={styles.stageSection}>
-                <p style={styles.stageLabel}>{stage}</p>
-                <div style={styles.toolList}>
-                  {tools.map((tool) => (
-                    <button
-                      key={`${activeDomain}-${tool.name}`}
-                      draggable
-                      onClick={() => addToolNode(tool)}
-                      onDragStart={(event) => event.dataTransfer.setData("text/plain", tool.name)}
-                      style={styles.toolCard}
-                      type="button"
-                    >
-                      <div style={styles.toolTitle}>{tool.label}</div>
-                      <div style={styles.toolName}>{tool.name}</div>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
+          <div style={styles.sidebarTitleBlock}>
+            <p style={styles.sidebarEyebrow}>Creator studio</p>
+            <h1 style={styles.sidebarTitle}>Design a reusable Swiggy playbook</h1>
           </div>
-        ) : null}
+          <div style={styles.sidebarActions}>
+            {onBack ? (
+              <button onClick={onBack} style={styles.secondaryIconButton} type="button">
+                Home
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="workflow-sidebar-scroll" style={styles.sidebarScrollArea}>
+          <section style={styles.briefCard}>
+            <div style={styles.sectionHeader}>
+              <div>
+                <p style={styles.sectionEyebrow}>Intent first</p>
+                <h2 style={styles.sectionTitle}>What should this workflow achieve?</h2>
+              </div>
+            </div>
+
+            <div style={styles.domainTabs}>
+              {(Object.entries(domainConfigs) as [DomainKey, (typeof domainConfigs)[DomainKey]][]).map(([key, group]) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveDomain(key)}
+                  style={key === activeDomain ? styles.domainTabActive : styles.domainTab}
+                  type="button"
+                >
+                  <span style={styles.domainTabTitle}>{group.label}</span>
+                  <span style={styles.domainTabCopy}>{group.audience}</span>
+                </button>
+              ))}
+            </div>
+
+            <div style={styles.domainSummaryCard}>
+              <div>
+                <p style={styles.domainSummaryTitle}>{activeGroup.label}</p>
+                <p style={styles.domainSummaryText}>{activeGroup.subtitle}</p>
+              </div>
+              <div style={styles.domainSummaryMeta}>
+                <span style={styles.metaPill}>{activeGroup.toolCount} MCP tools underneath</span>
+                <span style={styles.metaPill}>{activeGroup.guardrail}</span>
+              </div>
+            </div>
+
+            <label htmlFor="workflow-prompt" style={styles.promptLabel}>
+              Workflow brief
+            </label>
+            <textarea
+              id="workflow-prompt"
+              onChange={(event) => setPrompt(event.target.value)}
+              placeholder="Describe the repeat outcome, user preferences, and when execution should pause."
+              style={styles.promptInput}
+              value={prompt}
+            />
+
+            <div style={styles.suggestionRail}>
+              {promptSuggestions[activeDomain].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => setPrompt(suggestion)}
+                  style={styles.suggestionChip}
+                  type="button"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
       </aside>
 
-      <section
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={handleCanvasDrop}
-        style={styles.canvasArea}
-      >
-        <div style={styles.canvasToolbar}>
-          <textarea
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Describe the workflow you want to create..."
-            style={styles.promptInput}
-            value={prompt}
-          />
-          <button onClick={handlePromptDraft} style={styles.generateButton} type="button">
-            Start from prompt
-          </button>
-        </div>
+      <section style={styles.canvasArea}>
+        <div style={styles.canvasBackdrop} />
 
-        {generationPhase === "drafting" ? <div style={styles.draftingBadge}>Generating workflow on canvas</div> : null}
-
-        {nodes.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyTitle}>Drag tools here to start building.</p>
-            <p style={styles.emptyText}>
-              Use the left panel to drop MCP tools into the canvas, or generate a first draft from the prompt bar.
+        <div style={styles.canvasHeader}>
+          <div style={styles.canvasHeaderCopy}>
+            <p style={styles.canvasEyebrow}>Generated runbook</p>
+            <h2 style={styles.canvasTitle}>Live plan board for {activeGroup.label.toLowerCase()} workflows</h2>
+            <p style={styles.canvasSubtitle}>
+              Users describe the outcome in plain language. The system turns that brief into a clear execution graph with approvals, visible progress, and a final review step.
             </p>
           </div>
-        ) : null}
 
-        <div style={styles.canvasGrid} />
+          <div style={styles.canvasHeaderActions}>
+            <button onClick={resetWorkflow} style={styles.canvasSecondaryButton} type="button">
+              Clear board
+            </button>
+            <button onClick={handlePromptDraft} style={styles.generateButton} type="button">
+              Generate runbook
+            </button>
+          </div>
+        </div>
 
-        {nodes.map((node, index) => (
-          <div
-            key={node.id}
-            onMouseDown={(event) => startNodeDrag(event, node.id)}
-            onClick={() => setSelectedNodeId(node.id)}
-            style={{
-              ...(selectedNodeId === node.id ? styles.canvasNodeActive : styles.canvasNode),
-              left: `${node.x}px`,
-              top: `${node.y}px`,
-            }}
-          >
-            <div style={styles.nodeStage}>{node.stage}</div>
-            <div style={styles.nodeTitle}>{node.title}</div>
-            <div style={styles.nodeTool}>{node.toolName}</div>
-            <div
-              style={
-                node.state === "done"
-                  ? styles.nodeStateDone
-                  : node.state === "running"
-                    ? styles.nodeStateRunning
-                    : node.state === "waiting"
-                      ? styles.nodeStateWaiting
-                      : styles.nodeStateDraft
-              }
-            >
-              {node.state}
+        <div style={styles.canvasMetaBar}>
+          <span style={styles.canvasMetaPill}>{activeGroup.label}</span>
+          <span style={styles.canvasMetaPill}>{steps.length || 0} steps on board</span>
+          <span style={styles.canvasMetaPill}>{activeGroup.guardrail}</span>
+        </div>
+
+        <div
+          style={{
+            ...styles.workspaceLayout,
+            gridTemplateColumns: isCompact ? "1fr" : "minmax(0, 1fr) 300px",
+          }}
+        >
+          <div style={styles.flowColumn}>
+            <div style={styles.guardrailStrip}>
+              {guardrailCards[activeDomain].map((item) => (
+                <article key={item.label} style={styles.guardrailTile}>
+                  <p style={styles.guardrailLabel}>{item.label}</p>
+                  <p style={styles.guardrailValue}>{item.value}</p>
+                </article>
+              ))}
             </div>
-            {index < nodes.length - 1 ? <div style={styles.connector} /> : null}
-          </div>
-        ))}
 
-        {selectedNode ? (
-          <div style={styles.selectionPanel}>
-            <div style={styles.selectionLabel}>Selected block</div>
-            <div style={styles.selectionTitle}>{selectedNode.title}</div>
-            <div style={styles.selectionMeta}>{selectedNode.toolName}</div>
-            <div style={styles.selectionMeta}>{toolGroups[selectedNode.domain].label}</div>
+            <section style={styles.flowShell}>
+              <div style={styles.flowShellHeader}>
+                <div>
+                  <p style={styles.flowShellEyebrow}>Execution map</p>
+                  <h3 style={styles.flowShellTitle}>Workflow graph</h3>
+                </div>
+                {generationPhase === "drafting" ? (
+                  <div style={styles.flowStatusBadge}>Drafting the runbook graph</div>
+                ) : (
+                  <div style={styles.flowStatusBadgeMuted}>
+                    {steps.length > 0 ? "Graph centered around the execution path" : "Generate to preview the graph"}
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.flowViewport}>
+                {steps.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <div style={styles.emptyCard}>
+                      <p style={styles.emptyKicker}>Start with intent</p>
+                      <p style={styles.emptyTitle}>Describe the outcome, then let the graph show the plan.</p>
+                      <p style={styles.emptyText}>
+                        This workspace should feel like a saved playbook taking shape. Generate from the brief to see a centered flow with a readable execution path and approval stop.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <ReactFlow
+                    defaultEdgeOptions={{ type: "smoothstep" }}
+                    edges={flowEdges}
+                    elementsSelectable
+                    fitView
+                    fitViewOptions={{ padding: 0.28, maxZoom: 1.05 }}
+                    nodes={flowNodes}
+                    nodesConnectable={false}
+                    nodesDraggable={false}
+                    nodeTypes={nodeTypes}
+                    onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+                    panOnDrag={false}
+                    panOnScroll={false}
+                    proOptions={{ hideAttribution: true }}
+                    selectionOnDrag={false}
+                    style={styles.reactFlow}
+                    zoomOnDoubleClick={false}
+                    zoomOnPinch={false}
+                    zoomOnScroll={false}
+                  >
+                    <Background
+                      color="rgba(255, 82, 0, 0.08)"
+                      gap={28}
+                      lineWidth={1}
+                      variant={BackgroundVariant.Dots}
+                    />
+                  </ReactFlow>
+                )}
+              </div>
+            </section>
           </div>
-        ) : null}
+
+          <aside style={styles.inspectorRail}>
+            <div style={styles.inspectorSection}>
+              <p style={styles.inspectorEyebrow}>Execution view</p>
+              <h3 style={styles.inspectorTitle}>Workflow status</h3>
+              <div style={styles.progressMetric}>
+                <span style={styles.progressValue}>{completedStepCount}</span>
+                <span style={styles.progressLabel}>completed steps</span>
+              </div>
+              <p style={styles.inspectorText}>
+                {generationPhase === "ready"
+                  ? "The workflow is simulating a real execution path and will stop at the approval node."
+                  : "Generate a runbook to preview the graph users will trust before final action."}
+              </p>
+            </div>
+
+            <div style={styles.inspectorSection}>
+              <p style={styles.inspectorEyebrow}>Selected step</p>
+              {selectedStep ? (
+                <>
+                  <h3 style={styles.inspectorTitle}>{selectedStep.title}</h3>
+                  <p style={styles.inspectorText}>{selectedStep.toolName}</p>
+                  <div style={styles.selectedMetaList}>
+                    <span style={styles.selectedMetaChip}>{domainConfigs[selectedStep.domain].label}</span>
+                    <span style={styles.selectedMetaChip}>{selectedStep.stage}</span>
+                    <span style={styles.selectedMetaChip}>{nodeStateLabel[selectedStep.state]}</span>
+                  </div>
+                </>
+              ) : (
+                <p style={styles.inspectorText}>Select a graph node to inspect the generated step details.</p>
+              )}
+            </div>
+          </aside>
+        </div>
       </section>
     </main>
   );
