@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Background,
   BackgroundVariant,
+  Controls,
   Handle,
   MarkerType,
   Position,
@@ -135,10 +136,10 @@ const nodeStateLabel: Record<NodeState, string> = {
   waiting: "Awaiting approval",
 };
 
-const FLOW_NODE_WIDTH = 248;
-const FLOW_NODE_HEIGHT = 132;
-const FLOW_COLUMN_GAP = 88;
-const FLOW_ROW_GAP = 156;
+const FLOW_NODE_WIDTH = 264;
+const FLOW_NODE_HEIGHT = 148;
+const FLOW_COLUMN_GAP = 132;
+const FLOW_ROW_GAP = 208;
 
 function getColumnCount(nodeCount: number) {
   if (nodeCount <= 3) {
@@ -500,45 +501,48 @@ export function WorkflowCreation({ onBack }: WorkflowCreationProps) {
               </div>
 
               <div style={styles.flowViewport}>
+                <ReactFlow
+                  defaultEdgeOptions={{ type: "smoothstep" }}
+                  edges={flowEdges}
+                  elementsSelectable
+                  fitView={steps.length > 0}
+                  fitViewOptions={{ padding: 0.42, maxZoom: 1.02 }}
+                  maxZoom={1.4}
+                  minZoom={0.6}
+                  nodes={flowNodes}
+                  nodesConnectable={false}
+                  nodesDraggable={false}
+                  nodeTypes={nodeTypes}
+                  onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+                  panOnDrag
+                  panOnScroll
+                  proOptions={{ hideAttribution: true }}
+                  selectionOnDrag={false}
+                  style={styles.reactFlow}
+                  zoomOnDoubleClick={false}
+                  zoomOnPinch
+                  zoomOnScroll
+                >
+                  <Background
+                    color="rgba(255, 82, 0, 0.05)"
+                    gap={32}
+                    lineWidth={1}
+                    variant={BackgroundVariant.Dots}
+                  />
+                  <Controls showFitView={steps.length > 0} style={styles.flowControls} />
+                </ReactFlow>
+
                 {steps.length === 0 ? (
                   <div style={styles.emptyState}>
                     <div style={styles.emptyCard}>
                       <p style={styles.emptyKicker}>Start with intent</p>
                       <p style={styles.emptyTitle}>Describe the outcome, then let the graph show the plan.</p>
                       <p style={styles.emptyText}>
-                        This workspace should feel like a saved playbook taking shape. Generate from the brief to see a centered flow with a readable execution path and approval stop.
+                        This workspace should stay visible even before generation. Use the brief on the left, then generate a centered runbook with a readable execution path and approval stop.
                       </p>
                     </div>
                   </div>
-                ) : (
-                  <ReactFlow
-                    defaultEdgeOptions={{ type: "smoothstep" }}
-                    edges={flowEdges}
-                    elementsSelectable
-                    fitView
-                    fitViewOptions={{ padding: 0.28, maxZoom: 1.05 }}
-                    nodes={flowNodes}
-                    nodesConnectable={false}
-                    nodesDraggable={false}
-                    nodeTypes={nodeTypes}
-                    onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-                    panOnDrag={false}
-                    panOnScroll={false}
-                    proOptions={{ hideAttribution: true }}
-                    selectionOnDrag={false}
-                    style={styles.reactFlow}
-                    zoomOnDoubleClick={false}
-                    zoomOnPinch={false}
-                    zoomOnScroll={false}
-                  >
-                    <Background
-                      color="rgba(255, 82, 0, 0.08)"
-                      gap={28}
-                      lineWidth={1}
-                      variant={BackgroundVariant.Dots}
-                    />
-                  </ReactFlow>
-                )}
+                ) : null}
               </div>
             </section>
           </div>
