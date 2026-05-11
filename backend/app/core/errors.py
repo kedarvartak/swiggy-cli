@@ -23,3 +23,15 @@ class WorkflowDefinitionExistsError(BackendError):
 
 class WorkflowValidationError(BackendError):
     """Raised when workflow payloads are invalid or incomplete."""
+
+
+class WorkflowRunNotFoundError(BackendError):
+    """Raised when a requested workflow run cannot be found."""
+
+
+class WorkflowRunStateError(BackendError):
+    """Raised when a workflow run cannot transition from its current state."""
+
+
+class WorkflowExecutionError(BackendError):
+    """Raised when workflow execution fails while advancing a run."""
