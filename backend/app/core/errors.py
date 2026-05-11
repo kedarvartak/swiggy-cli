@@ -35,3 +35,11 @@ class WorkflowRunStateError(BackendError):
 
 class WorkflowExecutionError(BackendError):
     """Raised when workflow execution fails while advancing a run."""
+
+
+class AuthRequiredError(BackendError):
+    """Raised when the backend needs the caller to re-authenticate."""
+
+
+class AuthForbiddenError(BackendError):
+    """Raised when the active session lacks required domain access or scope."""

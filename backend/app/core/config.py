@@ -16,3 +16,10 @@ def get_run_storage_directory() -> Path:
     if configured:
         return Path(configured).expanduser().resolve()
     return Path(__file__).resolve().parents[3] / ".runtime" / "runs"
+
+
+def get_auth_storage_directory() -> Path:
+    configured = os.environ.get("SWIGGY_AUTH_DIR", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return Path(__file__).resolve().parents[3] / ".runtime" / "auth"

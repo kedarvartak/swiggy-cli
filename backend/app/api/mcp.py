@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.core.errors import McpConfigurationError, McpProtocolError
+from app.core.errors import AuthForbiddenError, AuthRequiredError, McpConfigurationError, McpProtocolError
 from app.domain.mcp.models import ToolCallRequest, ToolDescriptor
 from app.domain.mcp.service import (
     call_mcp_tool,
@@ -29,6 +29,10 @@ def mcp_status() -> dict:
 def mcp_tools() -> list[ToolDescriptor]:
     try:
         return [ToolDescriptor.model_validate(tool) for tool in list_mcp_tools()]
+    except AuthRequiredError as error:
+        raise HTTPException(status_code=401, detail=str(error)) from error
+    except AuthForbiddenError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except McpConfigurationError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     except McpProtocolError as error:
@@ -44,6 +48,10 @@ def mcp_tool_catalog() -> list[ToolDescriptor]:
 def mcp_tool_call(request: ToolCallRequest) -> dict:
     try:
         return call_mcp_tool(request.name, request.arguments)
+    except AuthRequiredError as error:
+        raise HTTPException(status_code=401, detail=str(error)) from error
+    except AuthForbiddenError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except McpConfigurationError as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
     except McpProtocolError as error:
