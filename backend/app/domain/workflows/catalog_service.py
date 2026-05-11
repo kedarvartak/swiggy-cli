@@ -10,15 +10,34 @@ from app.core.errors import (
     WorkflowNotFoundError,
     WorkflowValidationError,
 )
+from app.domain.mcp.tool_registry import get_tool_policy
 
 from .models import WorkflowDefinition
 
 
 def validate_workflow_definition(payload: dict[str, Any]) -> WorkflowDefinition:
     try:
-        return WorkflowDefinition.model_validate(payload)
+        definition = WorkflowDefinition.model_validate(payload)
     except Exception as error:
         raise WorkflowValidationError(str(error)) from error
+
+    unknown_tools = [tool_name for tool_name in definition.tools if get_tool_policy(tool_name) is None]
+    if unknown_tools:
+        raise WorkflowValidationError(
+            f"Workflow `{definition.id}` references unknown tools: {', '.join(unknown_tools)}."
+        )
+
+    unknown_step_tools = [
+        step.toolName
+        for step in definition.steps
+        if step.toolName is not None and get_tool_policy(step.toolName) is None
+    ]
+    if unknown_step_tools:
+        raise WorkflowValidationError(
+            f"Workflow `{definition.id}` contains steps with unknown tools: {', '.join(unknown_step_tools)}."
+        )
+
+    return definition
 
 
 def _workflow_file_name(workflow_id: str) -> str:

@@ -3,6 +3,8 @@
   "title": "Team Offsite Meal Orchestration",
   "version": "0.1.0",
   "app": "swiggy",
+  "domain": "food",
+  "goal": "Build a high-confidence team meal plan with dietary coverage, budget discipline, fallback handling, and explicit human approval before placement.",
   "summary": "Coordinates a large team meal by combining dietary segmentation, budget control, timing constraints, restaurant reliability checks, batching, and fallback planning.",
   "difficulty": "complex",
   "tags": ["team-ordering", "operations", "fallbacks", "budgeting", "dietary-constraints"],
@@ -69,11 +71,52 @@
       "example": ["pizza", "burgers"]
     }
   ],
+  "constraints": [
+    {
+      "id": "budget-cap",
+      "title": "Stay within team budget",
+      "description": "The combined food, packaging, and delivery spend must remain under the organizer's budget cap.",
+      "type": "budget"
+    },
+    {
+      "id": "delivery-window",
+      "title": "Honor delivery window",
+      "description": "The recommended restaurant plan must fit the requested delivery window and order size.",
+      "type": "timing"
+    },
+    {
+      "id": "dietary-coverage",
+      "title": "Cover dietary segmentation",
+      "description": "The selected plan must support vegetarian, vegan, Jain, high-protein, and allergy-sensitive diners as requested.",
+      "type": "dietary"
+    },
+    {
+      "id": "approval-before-placement",
+      "title": "Require organizer sign-off",
+      "description": "No irreversible ordering step should run until the organizer reviews the proposed basket and fallback posture.",
+      "type": "approval"
+    }
+  ],
+  "approvalPoints": [
+    {
+      "stepId": "human-approval",
+      "title": "Organizer approval",
+      "description": "Pause after cart staging so the organizer can review budget, segmentation coverage, and fallback readiness.",
+      "kind": "final_confirmation"
+    }
+  ],
   "tools": [
     "search_restaurants",
     "get_restaurant_menu",
     "update_food_cart",
     "get_food_cart",
+    "place_food_order",
+    "track_food_order"
+  ],
+  "toolStrategy": [
+    "search_restaurants",
+    "get_restaurant_menu",
+    "update_food_cart",
     "place_food_order",
     "track_food_order"
   ],
@@ -148,5 +191,13 @@
   "limitations": [
     "Still depends on app-side metadata for reliability and preparation-time confidence.",
     "The current CLI can plan this workflow but does not yet execute the full orchestration automatically."
-  ]
+  ],
+  "fallbackRules": [
+    "If a primary restaurant cannot cover one or more dietary segments, split ordering or fall back to the next ranked vendor.",
+    "If the approved cart fails at placement time, verify order status first, then retry only if no order exists."
+  ],
+  "successOutput": {
+    "type": "approved-order-flow",
+    "description": "A staged team meal plan with organizer approval checkpoints, fallback guidance, and a trackable fulfillment step."
+  }
 }

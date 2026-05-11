@@ -3,6 +3,8 @@
   "title": "Healthy Meal Finder",
   "version": "0.1.0",
   "app": "swiggy",
+  "domain": "food",
+  "goal": "Find a meal that satisfies nutrition, budget, and distance constraints, then prepare a reviewable food cart candidate.",
   "summary": "Finds a meal that satisfies basic nutrition, distance, budget, and restaurant quality constraints before preparing a cart candidate.",
   "difficulty": "advanced",
   "tags": ["nutrition", "budget", "distance", "meal-planning"],
@@ -50,7 +52,36 @@
       "example": 500
     }
   ],
+  "constraints": [
+    {
+      "id": "budget-cap",
+      "title": "Respect user budget",
+      "description": "Keep the selected meal combination within the user's maximum budget when provided.",
+      "type": "budget"
+    },
+    {
+      "id": "distance-window",
+      "title": "Limit delivery distance",
+      "description": "Only consider restaurants that satisfy the user's distance tolerance.",
+      "type": "location"
+    },
+    {
+      "id": "protein-threshold",
+      "title": "Meet nutrition threshold",
+      "description": "Filter and rank only meals that satisfy the requested minimum protein target.",
+      "type": "dietary"
+    }
+  ],
+  "approvalPoints": [
+    {
+      "stepId": "review-cart",
+      "title": "Review prepared cart",
+      "description": "Pause after cart preparation so the user can confirm the selected meal and total.",
+      "kind": "before_mutation"
+    }
+  ],
   "tools": ["search_restaurants", "get_restaurant_menu", "update_food_cart", "get_food_cart"],
+  "toolStrategy": ["search_restaurants", "get_restaurant_menu", "update_food_cart", "get_food_cart"],
   "steps": [
     {
       "id": "capture-constraints",
@@ -107,5 +138,13 @@
   "limitations": [
     "Needs menu-level nutrition data or reliable proxies to score protein accurately.",
     "Does not place the final order automatically in the current implementation."
-  ]
+  ],
+  "fallbackRules": [
+    "If a shortlisted restaurant does not meet the protein threshold after menu inspection, continue ranking the next valid candidate.",
+    "If the final cart exceeds budget after add-ons or taxes, return to ranking rather than mutating further."
+  ],
+  "successOutput": {
+    "type": "cart-ready",
+    "description": "A reviewable food cart candidate that satisfies the declared nutrition and budget constraints."
+  }
 }
