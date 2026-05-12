@@ -5,9 +5,11 @@ from app.api.health import router as health_router
 from app.api.mcp import router as mcp_router
 from app.api.runs import router as runs_router
 from app.api.workflows import router as workflows_router
+from app.core.http import install_http_runtime
 
 
 app = FastAPI(title="Swiggy Backend", version="0.1.0")
+install_http_runtime(app)
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api")
 app.include_router(mcp_router, prefix="/api")

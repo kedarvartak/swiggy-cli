@@ -19,6 +19,10 @@ def get_auth_status(session_id: str | None = None) -> AuthStatusResponse:
     return AuthStatusResponse(session=session, oauth=_oauth_metadata())
 
 
+def resolve_auth_session_id(session_id: str | None = None) -> str:
+    return _resolve_session_id(session_id)
+
+
 def require_authenticated_session(session_id: str | None = None, domain: McpDomain | None = None) -> AuthSessionState:
     resolved_session_id = _resolve_session_id(session_id)
     session = _load_or_bootstrap_session(resolved_session_id)

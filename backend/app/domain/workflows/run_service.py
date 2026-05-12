@@ -7,6 +7,8 @@ from typing import Any
 from uuid import uuid4
 
 from app.core.config import get_run_storage_directory
+from app.core.telemetry import log_event, metrics
+from app.domain.auth.service import resolve_auth_session_id
 from app.core.errors import (
     WorkflowExecutionError,
     WorkflowRunNotFoundError,
@@ -45,6 +47,7 @@ def create_workflow_run(request: WorkflowRunRequest) -> WorkflowRun:
     run = WorkflowRun(
         runId=f"run_{uuid4().hex[:12]}",
         workflowId=definition.id,
+        sessionId=resolve_auth_session_id(request.sessionId),
         status="created",
         domain=definition.domain,
         title=definition.title,
@@ -169,6 +172,7 @@ def cancel_workflow_run(run_id: str) -> WorkflowRun:
         raise WorkflowRunStateError(f"Workflow run `{run_id}` cannot be cancelled from {run.status}.")
 
     timestamp = _utc_now()
+    cancelled_from_approval = run.pendingApproval is not None
     if run.currentStepId:
         step = _find_step(run, run.currentStepId)
         if step is not None and step.status in {"pending", "running", "waiting_for_approval"}:
@@ -178,6 +182,8 @@ def cancel_workflow_run(run_id: str) -> WorkflowRun:
     run.status = "cancelled"
     run.pendingApproval = None
     run.currentStepId = None
+    if cancelled_from_approval:
+        metrics().increment("approval_dropoff_total")
     _append_event(run, "run_cancelled", message="Workflow run cancelled.")
     _refresh_summary(run)
     _save_run(run)
@@ -313,10 +319,10 @@ def _execute_tool_step(run: WorkflowRun, step: WorkflowRunStep) -> dict[str, Jso
     )
 
     try:
-        result = call_mcp_tool(step.toolName, arguments)
+        result = call_mcp_tool(step.toolName, arguments, session_id=run.sessionId)
     except Exception as error:
         if requires_status_check_before_retry(policy) and policy.statusCheckTool:
-            status_result = call_mcp_tool(policy.statusCheckTool, {})
+            status_result = call_mcp_tool(policy.statusCheckTool, {}, session_id=run.sessionId)
             _merge_result_context(run, policy.statusCheckTool, status_result)
         raise WorkflowExecutionError(f"Tool `{step.toolName}` failed: {error}") from error
 
@@ -335,7 +341,7 @@ def _refresh_turn_boundary_state(run: WorkflowRun, tool_name: str) -> dict[str, 
     refresh_tool = _get_refresh_tool_for(tool_name)
     if refresh_tool is None:
         return None
-    result = call_mcp_tool(refresh_tool, {})
+    result = call_mcp_tool(refresh_tool, {}, session_id=run.sessionId)
     _append_event(
         run,
         "tool_call_completed",
@@ -563,6 +569,7 @@ def _append_event(
         )
     )
     run.updatedAt = _utc_now()
+    _record_run_event(run, event_type, stepId=stepId, toolName=toolName, message=message)
 
 
 def _refresh_summary(run: WorkflowRun) -> None:
@@ -597,3 +604,35 @@ def _normalize_key(value: str) -> str:
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _record_run_event(
+    run: WorkflowRun,
+    event_type: str,
+    *,
+    stepId: str | None,
+    toolName: str | None,
+    message: str | None,
+) -> None:
+    if event_type == "run_started":
+        metrics().increment("workflow_started_total")
+    if event_type == "run_failed":
+        metrics().increment("workflow_failure_total")
+    if event_type == "run_completed":
+        metrics().increment("workflow_completion_total")
+    if event_type == "approval_required":
+        metrics().increment("approval_required_total")
+    log_event(
+        "info" if event_type not in {"run_failed"} else "error",
+        "workflow_run_event",
+        run_id=run.runId,
+        workflow_id=run.workflowId,
+        session_id=run.sessionId,
+        status=run.status,
+        event_type=event_type,
+        step_id=stepId,
+        tool=toolName,
+        message=message,
+        completed_steps=run.summary.completedSteps,
+        total_steps=run.summary.totalSteps,
+    )

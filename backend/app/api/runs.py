@@ -1,16 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
-
-from app.core.errors import (
-    AuthForbiddenError,
-    AuthRequiredError,
-    WorkflowExecutionError,
-    WorkflowNotFoundError,
-    WorkflowRunNotFoundError,
-    WorkflowRunStateError,
-    WorkflowValidationError,
-)
+from fastapi import APIRouter
 from app.domain.workflows.models import WorkflowApprovalRequest, WorkflowRun, WorkflowRunRequest
 from app.domain.workflows.run_service import (
     advance_workflow_run,
@@ -26,65 +16,24 @@ router = APIRouter(prefix="/runs", tags=["runs"])
 
 @router.post("", response_model=WorkflowRun)
 def create_run(request: WorkflowRunRequest) -> WorkflowRun:
-    try:
-        return create_workflow_run(request)
-    except AuthRequiredError as error:
-        raise HTTPException(status_code=401, detail=str(error)) from error
-    except AuthForbiddenError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
-    except WorkflowNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except WorkflowValidationError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-    except WorkflowExecutionError as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+    return create_workflow_run(request)
 
 
 @router.get("/{run_id}", response_model=WorkflowRun)
 def get_run(run_id: str) -> WorkflowRun:
-    try:
-        return get_workflow_run(run_id)
-    except WorkflowRunNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
+    return get_workflow_run(run_id)
 
 
 @router.post("/{run_id}/advance", response_model=WorkflowRun)
 def advance_run(run_id: str) -> WorkflowRun:
-    try:
-        return advance_workflow_run(run_id)
-    except AuthRequiredError as error:
-        raise HTTPException(status_code=401, detail=str(error)) from error
-    except AuthForbiddenError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
-    except WorkflowRunNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except WorkflowRunStateError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
-    except WorkflowExecutionError as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+    return advance_workflow_run(run_id)
 
 
 @router.post("/{run_id}/approve", response_model=WorkflowRun)
 def approve_run(run_id: str, request: WorkflowApprovalRequest) -> WorkflowRun:
-    try:
-        return approve_workflow_run(run_id, request)
-    except AuthRequiredError as error:
-        raise HTTPException(status_code=401, detail=str(error)) from error
-    except AuthForbiddenError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
-    except WorkflowRunNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except WorkflowRunStateError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
-    except WorkflowExecutionError as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+    return approve_workflow_run(run_id, request)
 
 
 @router.post("/{run_id}/cancel", response_model=WorkflowRun)
 def cancel_run(run_id: str) -> WorkflowRun:
-    try:
-        return cancel_workflow_run(run_id)
-    except WorkflowRunNotFoundError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except WorkflowRunStateError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
+    return cancel_workflow_run(run_id)

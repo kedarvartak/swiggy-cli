@@ -4,6 +4,7 @@ from .service import (
     mark_session_authenticated,
     mark_session_reauth_required,
     require_authenticated_session,
+    resolve_auth_session_id,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "mark_session_authenticated",
     "mark_session_reauth_required",
     "require_authenticated_session",
+    "resolve_auth_session_id",
 ]

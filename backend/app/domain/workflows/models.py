@@ -216,6 +216,7 @@ class WorkflowPendingApproval(BaseModel):
 class WorkflowRun(BaseModel):
     runId: str
     workflowId: str
+    sessionId: str | None = None
     status: WorkflowRunStatus
     domain: WorkflowDomain
     title: str
@@ -234,6 +235,7 @@ class WorkflowRun(BaseModel):
 
 class WorkflowRunRequest(BaseModel):
     workflowId: str
+    sessionId: str | None = None
     payload: dict[str, JsonValue] = Field(default_factory=dict)
     autoStart: bool = True
 

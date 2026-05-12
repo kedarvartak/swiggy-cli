@@ -28,6 +28,20 @@ class ToolDescriptor(BaseModel):
 class ToolCallRequest(BaseModel):
     name: str
     arguments: dict[str, JsonValue] = Field(default_factory=dict)
+    sessionId: str | None = None
+
+
+class ToolCallTiming(BaseModel):
+    durationMs: float
+
+
+class ToolCallResult(BaseModel):
+    name: str
+    domain: McpDomain
+    sessionId: str
+    success: bool
+    data: dict[str, JsonValue] = Field(default_factory=dict)
+    timing: ToolCallTiming
 
 
 class ToolPolicy(BaseModel):
