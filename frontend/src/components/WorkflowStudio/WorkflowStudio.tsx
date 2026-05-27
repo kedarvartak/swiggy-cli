@@ -15,7 +15,7 @@ const cardImages = [
 
 type WorkflowStudioProps = {
   onBack?: () => void;
-  onOpenCreation?: (workflowId?: string) => void;
+  onOpenCreation?: (workflowId?: string, mode?: "author" | "run") => void;
 };
 
 export function WorkflowStudio({ onBack, onOpenCreation }: WorkflowStudioProps) {
@@ -72,8 +72,8 @@ export function WorkflowStudio({ onBack, onOpenCreation }: WorkflowStudioProps) 
           </button>
 
           <div style={styles.navActions}>
-            <button onClick={() => onOpenCreation?.()} style={styles.secondaryButton} type="button">
-              Open workflow creation
+            <button onClick={() => onOpenCreation?.(undefined, "author")} style={styles.createButton} type="button">
+              Create new workflow
             </button>
             <button onClick={onBack} style={styles.backButton} type="button">
               Back to home page
@@ -86,9 +86,12 @@ export function WorkflowStudio({ onBack, onOpenCreation }: WorkflowStudioProps) 
         <p style={styles.kicker}>Workflows marketplace</p>
         <h1 style={styles.title}>Reusable Swiggy workflows for repeat intent.</h1>
         <p style={styles.subtitle}>
-          Browse ready-made workflows, save the ones you like, and run them anytime with your own
-          preferences and approval rules.
+          Browse saved workflows, run them with your own inputs, or open any definition in the
+          authoring studio to adjust its constraints, approvals, and tool sequence.
         </p>
+        <button onClick={() => onOpenCreation?.(undefined, "author")} style={styles.heroCta} type="button">
+          Create new workflow
+        </button>
       </section>
 
       <section style={styles.section}>
@@ -114,13 +117,22 @@ export function WorkflowStudio({ onBack, onOpenCreation }: WorkflowStudioProps) 
                       </span>
                     ))}
                   </div>
-                  <button
-                    onClick={() => onOpenCreation?.(workflow.id)}
-                    style={styles.cardButton}
-                    type="button"
-                  >
-                    Open live board
-                  </button>
+                  <div style={styles.cardActionRow}>
+                    <button
+                      onClick={() => onOpenCreation?.(workflow.id, "run")}
+                      style={styles.cardButton}
+                      type="button"
+                    >
+                      Run
+                    </button>
+                    <button
+                      onClick={() => onOpenCreation?.(workflow.id, "author")}
+                      style={styles.cardSecondaryButton}
+                      type="button"
+                    >
+                      Edit
+                    </button>
+                  </div>
                 </div>
               </article>
             ))}
