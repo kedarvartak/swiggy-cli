@@ -176,6 +176,11 @@ class WorkflowPlanRequest(BaseModel):
     payload: dict[str, JsonValue] = Field(default_factory=dict)
 
 
+class WorkflowDraftRequest(BaseModel):
+    description: str
+    domain: WorkflowDomain | None = None
+
+
 class WorkflowRunSummary(BaseModel):
     completedSteps: int = 0
     totalSteps: int = 0

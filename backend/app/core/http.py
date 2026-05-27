@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.errors import (
@@ -25,6 +26,14 @@ from app.core.telemetry import log_event
 
 
 def install_http_runtime(app: FastAPI) -> None:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_allowed_cors_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     @app.middleware("http")
     async def request_metadata_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
         request.state.request_id = f"req_{uuid4().hex[:12]}"
@@ -165,3 +174,15 @@ def _map_backend_error(error: BackendError) -> tuple[int, str, bool]:
 
 def _timestamp() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _allowed_cors_origins() -> list[str]:
+    import os
+
+    configured = os.environ.get("SWIGGY_CORS_ORIGINS", "").strip()
+    if configured:
+        return [origin.strip() for origin in configured.split(",") if origin.strip()]
+    return [
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    ]

@@ -7,7 +7,13 @@ from app.domain.workflows.catalog_service import (
     validate_workflow_definition,
     write_workflow_definition,
 )
-from app.domain.workflows.models import WorkflowDefinition, WorkflowPlan, WorkflowPlanRequest
+from app.domain.workflows.draft_service import draft_workflow_definition
+from app.domain.workflows.models import (
+    WorkflowDefinition,
+    WorkflowDraftRequest,
+    WorkflowPlan,
+    WorkflowPlanRequest,
+)
 from app.domain.workflows.planner_service import create_workflow_plan
 
 
@@ -17,6 +23,11 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 @router.get("", response_model=list[WorkflowDefinition])
 def list_workflows() -> list[WorkflowDefinition]:
     return list_workflow_definitions()
+
+
+@router.post("/draft", response_model=WorkflowDefinition)
+def draft_workflow(request: WorkflowDraftRequest) -> WorkflowDefinition:
+    return draft_workflow_definition(request.description, request.domain)
 
 
 @router.get("/{workflow_id}", response_model=WorkflowDefinition)

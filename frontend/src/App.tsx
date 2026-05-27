@@ -8,24 +8,29 @@ import { layout } from "./global/styles";
 const WORKFLOW_HASH = "#/workflows";
 const WORKFLOW_CREATION_HASH = "#/workflow-creation";
 
-export default function App() {
-  const [currentView, setCurrentView] = useState<"home" | "workflows" | "workflowCreation">(() => {
-    if (window.location.hash === WORKFLOW_CREATION_HASH) {
-      return "workflowCreation";
-    }
+function getCurrentView() {
+  if (window.location.hash.startsWith(WORKFLOW_CREATION_HASH)) {
+    return "workflowCreation" as const;
+  }
 
-    return window.location.hash === WORKFLOW_HASH ? "workflows" : "home";
-  },
+  return window.location.hash === WORKFLOW_HASH ? ("workflows" as const) : ("home" as const);
+}
+
+function getSelectedWorkflowId() {
+  const [, query = ""] = window.location.hash.split("?");
+  return new URLSearchParams(query).get("workflow");
+}
+
+export default function App() {
+  const [currentView, setCurrentView] = useState<"home" | "workflows" | "workflowCreation">(
+    getCurrentView,
   );
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(getSelectedWorkflowId);
 
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === WORKFLOW_CREATION_HASH) {
-        setCurrentView("workflowCreation");
-        return;
-      }
-
-      setCurrentView(window.location.hash === WORKFLOW_HASH ? "workflows" : "home");
+      setCurrentView(getCurrentView());
+      setSelectedWorkflowId(getSelectedWorkflowId());
     };
 
     window.addEventListener("hashchange", handleHashChange);
@@ -36,8 +41,10 @@ export default function App() {
     window.location.hash = WORKFLOW_HASH;
   };
 
-  const openWorkflowCreation = () => {
-    window.location.hash = WORKFLOW_CREATION_HASH;
+  const openWorkflowCreation = (workflowId?: string) => {
+    window.location.hash = workflowId
+      ? `${WORKFLOW_CREATION_HASH}?workflow=${encodeURIComponent(workflowId)}`
+      : WORKFLOW_CREATION_HASH;
   };
 
   const goHome = () => {
@@ -52,7 +59,7 @@ export default function App() {
         ) : currentView === "workflows" ? (
           <WorkflowStudio onBack={goHome} onOpenCreation={openWorkflowCreation} />
         ) : (
-          <WorkflowCreation onBack={goHome} />
+          <WorkflowCreation initialWorkflowId={selectedWorkflowId} onBack={goHome} />
         )}
       </div>
     </main>
