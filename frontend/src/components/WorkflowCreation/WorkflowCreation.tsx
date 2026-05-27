@@ -28,6 +28,7 @@ import {
 import { workflowCreationStyles as styles } from "./styles";
 
 type NodeState = "draft" | "running" | "done" | "waiting" | "failed" | "blocked";
+type WorkflowCreationMode = "author" | "run";
 
 type WorkflowBoardStep = {
   id: string;
@@ -205,6 +206,19 @@ function runStatusToNodeState(status: WorkflowRunStepStatus): NodeState {
   return "draft";
 }
 
+function definitionToBoardSteps(definition: WorkflowDefinition): WorkflowBoardStep[] {
+  return definition.steps.map((step) => ({
+    id: step.id,
+    toolName: step.toolName || step.kind,
+    title: step.title,
+    stage: step.kind,
+    domain: definition.domain,
+    kind: step.kind,
+    state: "draft",
+    description: step.description,
+  }));
+}
+
 function FlowWorkflowNode({ data }: NodeProps<Node<FlowNodeData>>) {
   const stateStyle =
     data.state === "done"
@@ -238,13 +252,20 @@ const nodeTypes: NodeTypes = {
 };
 
 type WorkflowCreationProps = {
+  initialMode?: WorkflowCreationMode;
   initialWorkflowId?: string | null;
   onBack?: () => void;
 };
 
-export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreationProps) {
+export function WorkflowCreation({ initialMode = "author", initialWorkflowId, onBack }: WorkflowCreationProps) {
+  const [mode, setMode] = useState<WorkflowCreationMode>(initialMode);
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(initialWorkflowId ?? null);
+  const [draftDescription, setDraftDescription] = useState(
+    "Find a high-protein meal under 500 rupees and pause before placing the order.",
+  );
+  const [draftDomain, setDraftDomain] = useState<WorkflowDomain>("food");
+  const [draftDefinition, setDraftDefinition] = useState<WorkflowDefinition | null>(null);
   const [payload, setPayload] = useState<Record<string, JsonValue>>({});
   const [plan, setPlan] = useState<WorkflowPlan | null>(null);
   const [run, setRun] = useState<WorkflowRun | null>(null);
@@ -252,6 +273,10 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
   const [statusText, setStatusText] = useState("Loading backend workflow catalog...");
   const [isBusy, setIsBusy] = useState(false);
   const [isCompact, setIsCompact] = useState(() => window.innerWidth < 1180);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -265,7 +290,13 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
         setWorkflows(catalog);
         const nextWorkflowId = initialWorkflowId ?? catalog[0]?.id ?? null;
         setSelectedWorkflowId(nextWorkflowId);
-        setStatusText(catalog.length > 0 ? "Select inputs and create a backend plan." : "No backend workflows are available.");
+        setStatusText(
+          initialMode === "author"
+            ? "Describe a workflow and draft it from the backend authoring endpoint."
+            : catalog.length > 0
+              ? "Select inputs and create a backend plan."
+              : "No backend workflows are available.",
+        );
       })
       .catch((error: Error) => {
         if (!cancelled) {
@@ -276,7 +307,7 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
     return () => {
       cancelled = true;
     };
-  }, [initialWorkflowId]);
+  }, [initialMode, initialWorkflowId]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -288,16 +319,27 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
   }, []);
 
   const selectedWorkflow = workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
+  const activeDefinition = mode === "author" ? draftDefinition : selectedWorkflow;
 
   useEffect(() => {
-    if (!selectedWorkflow) {
+    if (!selectedWorkflow || mode !== "run") {
       return;
     }
     setPayload(payloadFromWorkflow(selectedWorkflow));
     setPlan(null);
     setRun(null);
     setSelectedNodeId(null);
-  }, [selectedWorkflow]);
+  }, [mode, selectedWorkflow]);
+
+  useEffect(() => {
+    if (!selectedWorkflow || mode !== "author" || !initialWorkflowId) {
+      return;
+    }
+    setDraftDefinition(selectedWorkflow);
+    setDraftDomain(selectedWorkflow.domain);
+    setSelectedNodeId(selectedWorkflow.steps[0]?.id ?? null);
+    setStatusText("Loaded workflow definition for authoring.");
+  }, [initialWorkflowId, mode, selectedWorkflow]);
 
   const steps = useMemo<WorkflowBoardStep[]>(() => {
     if (run) {
@@ -329,13 +371,17 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
       }));
     }
 
+    if (draftDefinition) {
+      return definitionToBoardSteps(draftDefinition);
+    }
+
     return [];
-  }, [plan, run]);
+  }, [draftDefinition, plan, run]);
 
   const selectedStep = steps.find((step) => step.id === selectedNodeId) ?? null;
   const completedStepCount = run?.summary.completedSteps ?? steps.filter((step) => step.state === "done").length;
   const totalStepCount = run?.summary.totalSteps ?? steps.length;
-  const activeDomain = selectedWorkflow?.domain ?? plan?.domain ?? run?.domain ?? "food";
+  const activeDomain = activeDefinition?.domain ?? plan?.domain ?? run?.domain ?? draftDomain;
 
   const flowNodes = useMemo<Node<FlowNodeData>[]>(() => {
     return layoutSteps(steps).map((step) => ({
@@ -420,6 +466,81 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
     }
   };
 
+  const generateDraft = async () => {
+    const description = draftDescription.trim();
+    if (!description) {
+      setStatusText("Describe the workflow before drafting.");
+      return;
+    }
+
+    setIsBusy(true);
+    setStatusText("Drafting workflow definition from backend...");
+    try {
+      const nextDraft = await backendApi.draftWorkflow(description, draftDomain);
+      setDraftDefinition(nextDraft);
+      setSelectedNodeId(nextDraft.steps[0]?.id ?? null);
+      setPlan(null);
+      setRun(null);
+      setStatusText("Draft ready. Review metadata, inputs, constraints, and graph before saving.");
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : "Draft request failed.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!draftDefinition) {
+      setStatusText("Draft a workflow before saving.");
+      return;
+    }
+
+    setIsBusy(true);
+    setStatusText("Saving workflow to marketplace...");
+    try {
+      const result = await backendApi.saveWorkflow(draftDefinition);
+      setStatusText(`Saved ${result.workflowId} to the backend workflow catalog.`);
+      setWorkflows((current) => {
+        const withoutSaved = current.filter((workflow) => workflow.id !== draftDefinition.id);
+        return [...withoutSaved, draftDefinition].sort((left, right) => left.title.localeCompare(right.title));
+      });
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : "Save request failed.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const updateDraft = (updater: (definition: WorkflowDefinition) => WorkflowDefinition) => {
+    setDraftDefinition((current) => (current ? updater(current) : current));
+  };
+
+  const updateDraftInput = (
+    index: number,
+    field: "name" | "description" | "required",
+    value: string | boolean,
+  ) => {
+    updateDraft((definition) => ({
+      ...definition,
+      inputs: definition.inputs.map((input, inputIndex) =>
+        inputIndex === index ? { ...input, [field]: value } : input,
+      ),
+    }));
+  };
+
+  const updateDraftConstraint = (
+    index: number,
+    field: "title" | "description",
+    value: string,
+  ) => {
+    updateDraft((definition) => ({
+      ...definition,
+      constraints: definition.constraints.map((constraint, constraintIndex) =>
+        constraintIndex === index ? { ...constraint, [field]: value } : constraint,
+      ),
+    }));
+  };
+
   return (
     <main
       style={{
@@ -430,8 +551,10 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
       <aside style={isCompact ? styles.sidebarCompact : styles.sidebar}>
         <div style={styles.sidebarTopRow}>
           <div style={styles.sidebarTitleBlock}>
-            <p style={styles.sidebarEyebrow}>Backend workflow</p>
-            <h1 style={styles.sidebarTitle}>Plan and run from live state</h1>
+            <p style={styles.sidebarEyebrow}>{mode === "author" ? "Workflow author" : "Backend workflow"}</p>
+            <h1 style={styles.sidebarTitle}>
+              {mode === "author" ? "Create a reusable workflow" : "Plan and run from live state"}
+            </h1>
           </div>
           <div style={styles.sidebarActions}>
             {onBack ? (
@@ -443,81 +566,174 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
         </div>
 
         <div className="workflow-sidebar-scroll" style={styles.sidebarScrollArea}>
-          <section style={styles.briefCard}>
-            <div style={styles.sectionHeader}>
-              <div>
-                <p style={styles.sectionEyebrow}>Catalog</p>
-                <h2 style={styles.sectionTitle}>Choose a backend workflow</h2>
-              </div>
-            </div>
-
-            <select
-              disabled={workflows.length === 0 || isBusy}
-              onChange={(event) => setSelectedWorkflowId(event.target.value)}
-              style={styles.selectInput}
-              value={selectedWorkflowId ?? ""}
-            >
-              {workflows.map((workflow) => (
-                <option key={workflow.id} value={workflow.id}>
-                  {workflow.title}
-                </option>
-              ))}
-            </select>
-
-            {selectedWorkflow ? (
-              <div style={styles.domainSummaryCard}>
-                <div>
-                  <p style={styles.domainSummaryTitle}>{selectedWorkflow.title}</p>
-                  <p style={styles.domainSummaryText}>{selectedWorkflow.summary}</p>
+          {mode === "author" ? (
+            <>
+              <section style={styles.briefCard}>
+                <div style={styles.sectionHeader}>
+                  <div>
+                    <p style={styles.sectionEyebrow}>Author</p>
+                    <h2 style={styles.sectionTitle}>Describe the workflow to create</h2>
+                  </div>
                 </div>
-                <div style={styles.domainSummaryMeta}>
-                  <span style={styles.metaPill}>{domainLabels[selectedWorkflow.domain]}</span>
-                  <span style={styles.metaPill}>{selectedWorkflow.tools.length} backend tools</span>
-                  <span style={styles.metaPill}>{selectedWorkflow.approvalPoints.length} approvals</span>
-                </div>
-              </div>
-            ) : null}
-          </section>
 
-          {selectedWorkflow ? (
-            <section style={styles.briefCard}>
-              <div style={styles.sectionHeader}>
-                <div>
-                  <p style={styles.sectionEyebrow}>Inputs</p>
-                  <h2 style={styles.sectionTitle}>Payload sent to planning and run APIs</h2>
-                </div>
-              </div>
+                <label htmlFor="workflow-draft-domain" style={styles.promptLabel}>
+                  Domain
+                </label>
+                <select
+                  disabled={isBusy}
+                  id="workflow-draft-domain"
+                  onChange={(event) => setDraftDomain(event.target.value as WorkflowDomain)}
+                  style={styles.selectInput}
+                  value={draftDomain}
+                >
+                  <option value="food">Food</option>
+                  <option value="instamart">Instamart</option>
+                  <option value="dineout">Dineout</option>
+                  <option value="multi-domain">Multi-domain</option>
+                </select>
 
-              <div style={styles.inputGrid}>
-                {selectedWorkflow.inputs.map((field) => (
-                  <label key={field.name} style={styles.fieldBlock}>
-                    <span style={styles.promptLabel}>
-                      {field.name}
-                      {field.required ? " *" : ""}
-                    </span>
-                    <span style={styles.fieldHelp}>{field.description}</span>
-                    {field.type === "boolean" ? (
-                      <select
-                        onChange={(event) => updatePayloadField(field, event.target.value)}
-                        style={styles.selectInput}
-                        value={String(Boolean(payload[field.name]))}
-                      >
-                        <option value="true">true</option>
-                        <option value="false">false</option>
-                      </select>
-                    ) : (
-                      <textarea
-                        onChange={(event) => updatePayloadField(field, event.target.value)}
-                        rows={field.type === "array" || field.type === "object" ? 5 : 2}
-                        style={styles.promptInput}
-                        value={inputToString(payload[field.name])}
-                      />
-                    )}
+                <label htmlFor="workflow-draft-description" style={styles.promptLabel}>
+                  Workflow brief
+                </label>
+                <textarea
+                  disabled={isBusy}
+                  id="workflow-draft-description"
+                  onChange={(event) => setDraftDescription(event.target.value)}
+                  rows={7}
+                  style={styles.promptInput}
+                  value={draftDescription}
+                />
+
+                <button disabled={isBusy} onClick={generateDraft} style={styles.generateButton} type="button">
+                  Draft workflow
+                </button>
+              </section>
+
+              {draftDefinition ? (
+                <section style={styles.briefCard}>
+                  <div style={styles.sectionHeader}>
+                    <div>
+                      <p style={styles.sectionEyebrow}>Metadata</p>
+                      <h2 style={styles.sectionTitle}>Editable workflow definition</h2>
+                    </div>
+                  </div>
+
+                  <label style={styles.fieldBlock}>
+                    <span style={styles.promptLabel}>Title</span>
+                    <input
+                      onChange={(event) =>
+                        updateDraft((definition) => ({ ...definition, title: event.target.value }))
+                      }
+                      style={styles.textInput}
+                      value={draftDefinition.title}
+                    />
                   </label>
-                ))}
-              </div>
-            </section>
-          ) : null}
+
+                  <label style={styles.fieldBlock}>
+                    <span style={styles.promptLabel}>Summary</span>
+                    <textarea
+                      onChange={(event) =>
+                        updateDraft((definition) => ({ ...definition, summary: event.target.value }))
+                      }
+                      rows={4}
+                      style={styles.promptInput}
+                      value={draftDefinition.summary}
+                    />
+                  </label>
+
+                  <label style={styles.fieldBlock}>
+                    <span style={styles.promptLabel}>Goal</span>
+                    <textarea
+                      onChange={(event) =>
+                        updateDraft((definition) => ({ ...definition, goal: event.target.value }))
+                      }
+                      rows={4}
+                      style={styles.promptInput}
+                      value={draftDefinition.goal}
+                    />
+                  </label>
+                </section>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <section style={styles.briefCard}>
+                <div style={styles.sectionHeader}>
+                  <div>
+                    <p style={styles.sectionEyebrow}>Catalog</p>
+                    <h2 style={styles.sectionTitle}>Choose a backend workflow</h2>
+                  </div>
+                </div>
+
+                <select
+                  disabled={workflows.length === 0 || isBusy}
+                  onChange={(event) => setSelectedWorkflowId(event.target.value)}
+                  style={styles.selectInput}
+                  value={selectedWorkflowId ?? ""}
+                >
+                  {workflows.map((workflow) => (
+                    <option key={workflow.id} value={workflow.id}>
+                      {workflow.title}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedWorkflow ? (
+                  <div style={styles.domainSummaryCard}>
+                    <div>
+                      <p style={styles.domainSummaryTitle}>{selectedWorkflow.title}</p>
+                      <p style={styles.domainSummaryText}>{selectedWorkflow.summary}</p>
+                    </div>
+                    <div style={styles.domainSummaryMeta}>
+                      <span style={styles.metaPill}>{domainLabels[selectedWorkflow.domain]}</span>
+                      <span style={styles.metaPill}>{selectedWorkflow.tools.length} backend tools</span>
+                      <span style={styles.metaPill}>{selectedWorkflow.approvalPoints.length} approvals</span>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+
+              {selectedWorkflow ? (
+                <section style={styles.briefCard}>
+                  <div style={styles.sectionHeader}>
+                    <div>
+                      <p style={styles.sectionEyebrow}>Inputs</p>
+                      <h2 style={styles.sectionTitle}>Payload sent to planning and run APIs</h2>
+                    </div>
+                  </div>
+
+                  <div style={styles.inputGrid}>
+                    {selectedWorkflow.inputs.map((field) => (
+                      <label key={field.name} style={styles.fieldBlock}>
+                        <span style={styles.promptLabel}>
+                          {field.name}
+                          {field.required ? " *" : ""}
+                        </span>
+                        <span style={styles.fieldHelp}>{field.description}</span>
+                        {field.type === "boolean" ? (
+                          <select
+                            onChange={(event) => updatePayloadField(field, event.target.value)}
+                            style={styles.selectInput}
+                            value={String(Boolean(payload[field.name]))}
+                          >
+                            <option value="true">true</option>
+                            <option value="false">false</option>
+                          </select>
+                        ) : (
+                          <textarea
+                            onChange={(event) => updatePayloadField(field, event.target.value)}
+                            rows={field.type === "array" || field.type === "object" ? 5 : 2}
+                            style={styles.promptInput}
+                            value={inputToString(payload[field.name])}
+                          />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </>
+          )}
         </div>
       </aside>
 
@@ -526,27 +742,45 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
 
         <div style={styles.canvasHeader}>
           <div style={styles.canvasHeaderCopy}>
-            <p style={styles.canvasEyebrow}>Live backend board</p>
+            <p style={styles.canvasEyebrow}>{mode === "author" ? "Draft preview" : "Live backend board"}</p>
             <h2 style={styles.canvasTitle}>
-              {selectedWorkflow ? selectedWorkflow.title : "Workflow execution graph"}
+              {activeDefinition ? activeDefinition.title : "Workflow execution graph"}
             </h2>
-            <p style={styles.canvasSubtitle}>{plan?.summary || selectedWorkflow?.goal || statusText}</p>
+            <p style={styles.canvasSubtitle}>{plan?.summary || activeDefinition?.goal || statusText}</p>
           </div>
 
           <div style={styles.canvasHeaderActions}>
-            <button disabled={isBusy || !selectedWorkflow} onClick={createPlan} style={styles.canvasSecondaryButton} type="button">
-              Create plan
-            </button>
-            <button disabled={isBusy || !selectedWorkflow} onClick={startRun} style={styles.generateButton} type="button">
-              Start run
-            </button>
+            {mode === "author" ? (
+              <>
+                <button disabled={isBusy || !draftDefinition} onClick={saveDraft} style={styles.generateButton} type="button">
+                  Save to marketplace
+                </button>
+                <button disabled={isBusy} onClick={() => setMode("run")} style={styles.canvasSecondaryButton} type="button">
+                  Run mode
+                </button>
+              </>
+            ) : (
+              <>
+                <button disabled={isBusy || !selectedWorkflow} onClick={createPlan} style={styles.canvasSecondaryButton} type="button">
+                  Create plan
+                </button>
+                <button disabled={isBusy || !selectedWorkflow} onClick={startRun} style={styles.generateButton} type="button">
+                  Start run
+                </button>
+                <button disabled={isBusy} onClick={() => setMode("author")} style={styles.canvasSecondaryButton} type="button">
+                  Author mode
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         <div style={styles.canvasMetaBar}>
           <span style={styles.canvasMetaPill}>{domainLabels[activeDomain]}</span>
           <span style={styles.canvasMetaPill}>{totalStepCount} steps on board</span>
-          <span style={styles.canvasMetaPill}>{run ? formatStatus(run.status) : plan ? "planned" : "not planned"}</span>
+          <span style={styles.canvasMetaPill}>
+            {mode === "author" ? (draftDefinition ? "drafted" : "not drafted") : run ? formatStatus(run.status) : plan ? "planned" : "not planned"}
+          </span>
         </div>
 
         <div
@@ -557,7 +791,7 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
         >
           <div style={styles.flowColumn}>
             <div style={styles.guardrailStrip}>
-              {(plan?.constraints ?? selectedWorkflow?.constraints ?? []).slice(0, 3).map((item) => (
+              {(plan?.constraints ?? activeDefinition?.constraints ?? []).slice(0, 3).map((item) => (
                 <article key={item.id} style={styles.guardrailTile}>
                   <p style={styles.guardrailLabel}>{item.type}</p>
                   <p style={styles.guardrailValue}>{item.title}</p>
@@ -611,8 +845,12 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
                 {steps.length === 0 ? (
                   <div style={styles.emptyState}>
                     <div style={styles.emptyCard}>
-                      <p style={styles.emptyKicker}>Backend plan required</p>
-                      <p style={styles.emptyTitle}>Create a plan to draw the execution graph.</p>
+                      <p style={styles.emptyKicker}>{mode === "author" ? "Draft required" : "Backend plan required"}</p>
+                      <p style={styles.emptyTitle}>
+                        {mode === "author"
+                          ? "Describe and draft a workflow to preview its graph."
+                          : "Create a plan to draw the execution graph."}
+                      </p>
                       <p style={styles.emptyText}>{statusText}</p>
                     </div>
                   </div>
@@ -622,25 +860,88 @@ export function WorkflowCreation({ initialWorkflowId, onBack }: WorkflowCreation
           </div>
 
           <aside style={styles.inspectorRail}>
-            <div style={styles.inspectorSection}>
-              <p style={styles.inspectorEyebrow}>Run state</p>
-              <h3 style={styles.inspectorTitle}>{run ? run.runId : "No active run"}</h3>
-              <div style={styles.progressMetric}>
-                <span style={styles.progressValue}>{completedStepCount}</span>
-                <span style={styles.progressLabel}>of {totalStepCount} completed</span>
+            {mode === "author" ? (
+              <div style={styles.inspectorSection}>
+                <p style={styles.inspectorEyebrow}>Editable schema</p>
+                <h3 style={styles.inspectorTitle}>{draftDefinition ? "Inputs and constraints" : "No draft yet"}</h3>
+                {draftDefinition ? (
+                  <div style={styles.metadataList}>
+                    <p style={styles.inspectorText}>
+                      {draftDefinition.inputs.length} inputs, {draftDefinition.constraints.length} constraints,{" "}
+                      {draftDefinition.approvalPoints.length} approval points
+                    </p>
+
+                    <div style={styles.metadataGroup}>
+                      <p style={styles.metadataGroupTitle}>Inputs</p>
+                      {draftDefinition.inputs.map((field, index) => (
+                        <div key={`${field.name}-${index}`} style={styles.metadataItem}>
+                          <input
+                            onChange={(event) => updateDraftInput(index, "name", event.target.value)}
+                            style={styles.textInput}
+                            value={field.name}
+                          />
+                          <textarea
+                            onChange={(event) => updateDraftInput(index, "description", event.target.value)}
+                            rows={3}
+                            style={styles.compactTextarea}
+                            value={field.description}
+                          />
+                          <label style={styles.checkboxRow}>
+                            <input
+                              checked={field.required}
+                              onChange={(event) => updateDraftInput(index, "required", event.target.checked)}
+                              type="checkbox"
+                            />
+                            Required
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={styles.metadataGroup}>
+                      <p style={styles.metadataGroupTitle}>Constraints</p>
+                      {draftDefinition.constraints.map((constraint, index) => (
+                        <div key={`${constraint.id}-${index}`} style={styles.metadataItem}>
+                          <input
+                            onChange={(event) => updateDraftConstraint(index, "title", event.target.value)}
+                            style={styles.textInput}
+                            value={constraint.title}
+                          />
+                          <textarea
+                            onChange={(event) => updateDraftConstraint(index, "description", event.target.value)}
+                            rows={3}
+                            style={styles.compactTextarea}
+                            value={constraint.description}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p style={styles.inspectorText}>Draft a workflow to edit its metadata before saving.</p>
+                )}
               </div>
-              <p style={styles.inspectorText}>{run?.pendingApproval?.message || plan?.nextAction || statusText}</p>
-              {run?.status === "waiting_for_approval" ? (
-                <div style={styles.approvalActions}>
-                  <button disabled={isBusy} onClick={() => approveRun(true)} style={styles.generateButton} type="button">
-                    Approve
-                  </button>
-                  <button disabled={isBusy} onClick={() => approveRun(false)} style={styles.canvasSecondaryButton} type="button">
-                    Reject
-                  </button>
+            ) : (
+              <div style={styles.inspectorSection}>
+                <p style={styles.inspectorEyebrow}>Run state</p>
+                <h3 style={styles.inspectorTitle}>{run ? run.runId : "No active run"}</h3>
+                <div style={styles.progressMetric}>
+                  <span style={styles.progressValue}>{completedStepCount}</span>
+                  <span style={styles.progressLabel}>of {totalStepCount} completed</span>
                 </div>
-              ) : null}
-            </div>
+                <p style={styles.inspectorText}>{run?.pendingApproval?.message || plan?.nextAction || statusText}</p>
+                {run?.status === "waiting_for_approval" ? (
+                  <div style={styles.approvalActions}>
+                    <button disabled={isBusy} onClick={() => approveRun(true)} style={styles.generateButton} type="button">
+                      Approve
+                    </button>
+                    <button disabled={isBusy} onClick={() => approveRun(false)} style={styles.canvasSecondaryButton} type="button">
+                      Reject
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             <div style={styles.inspectorSection}>
               <p style={styles.inspectorEyebrow}>Selected step</p>

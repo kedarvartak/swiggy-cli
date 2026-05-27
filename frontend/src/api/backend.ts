@@ -209,6 +209,18 @@ export const backendApi = {
   getWorkflow(workflowId: string) {
     return request<WorkflowDefinition>(`/api/workflows/${encodeURIComponent(workflowId)}`);
   },
+  draftWorkflow(description: string, domain?: WorkflowDomain) {
+    return request<WorkflowDefinition>("/api/workflows/draft", {
+      method: "POST",
+      body: JSON.stringify({ description, domain }),
+    });
+  },
+  saveWorkflow(definition: WorkflowDefinition, force = false) {
+    return request<{ workflowId: string; path: string }>(`/api/workflows?force=${force}`, {
+      method: "POST",
+      body: JSON.stringify(definition),
+    });
+  },
   createPlan(workflowId: string, payload: Record<string, JsonValue>) {
     return request<WorkflowPlan>(`/api/workflows/${encodeURIComponent(workflowId)}/plan`, {
       method: "POST",

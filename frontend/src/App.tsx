@@ -21,16 +21,26 @@ function getSelectedWorkflowId() {
   return new URLSearchParams(query).get("workflow");
 }
 
+function getWorkflowCreationMode() {
+  const [, query = ""] = window.location.hash.split("?");
+  const mode = new URLSearchParams(query).get("mode");
+  return mode === "run" ? ("run" as const) : ("author" as const);
+}
+
 export default function App() {
   const [currentView, setCurrentView] = useState<"home" | "workflows" | "workflowCreation">(
     getCurrentView,
   );
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(getSelectedWorkflowId);
+  const [workflowCreationMode, setWorkflowCreationMode] = useState<"author" | "run">(
+    getWorkflowCreationMode,
+  );
 
   useEffect(() => {
     const handleHashChange = () => {
       setCurrentView(getCurrentView());
       setSelectedWorkflowId(getSelectedWorkflowId());
+      setWorkflowCreationMode(getWorkflowCreationMode());
     };
 
     window.addEventListener("hashchange", handleHashChange);
@@ -41,10 +51,10 @@ export default function App() {
     window.location.hash = WORKFLOW_HASH;
   };
 
-  const openWorkflowCreation = (workflowId?: string) => {
+  const openWorkflowCreation = (workflowId?: string, mode: "author" | "run" = workflowId ? "run" : "author") => {
     window.location.hash = workflowId
-      ? `${WORKFLOW_CREATION_HASH}?workflow=${encodeURIComponent(workflowId)}`
-      : WORKFLOW_CREATION_HASH;
+      ? `${WORKFLOW_CREATION_HASH}?workflow=${encodeURIComponent(workflowId)}&mode=${mode}`
+      : `${WORKFLOW_CREATION_HASH}?mode=${mode}`;
   };
 
   const goHome = () => {
@@ -59,7 +69,11 @@ export default function App() {
         ) : currentView === "workflows" ? (
           <WorkflowStudio onBack={goHome} onOpenCreation={openWorkflowCreation} />
         ) : (
-          <WorkflowCreation initialWorkflowId={selectedWorkflowId} onBack={goHome} />
+          <WorkflowCreation
+            initialMode={workflowCreationMode}
+            initialWorkflowId={selectedWorkflowId}
+            onBack={goHome}
+          />
         )}
       </div>
     </main>
