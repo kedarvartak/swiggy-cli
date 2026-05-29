@@ -8,6 +8,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from app.core.errors import (
     AuthForbiddenError,
@@ -25,7 +27,20 @@ from app.core.errors import (
 from app.core.telemetry import log_event
 
 
+class _RequestMetadataMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: Any) -> Response:
+        request.state.request_id = f"req_{uuid4().hex[:12]}"
+        request.state.request_started_at = _timestamp()
+        request.state.session_id = (
+            request.headers.get("x-session-id") or request.query_params.get("session_id")
+        )
+        response = await call_next(request)
+        response.headers["x-request-id"] = request.state.request_id
+        return response
+
+
 def install_http_runtime(app: FastAPI) -> None:
+    app.add_middleware(_RequestMetadataMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_allowed_cors_origins(),
@@ -33,15 +48,6 @@ def install_http_runtime(app: FastAPI) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    @app.middleware("http")
-    async def request_metadata_middleware(request: Request, call_next):  # type: ignore[no-untyped-def]
-        request.state.request_id = f"req_{uuid4().hex[:12]}"
-        request.state.request_started_at = _timestamp()
-        request.state.session_id = request.headers.get("x-session-id") or request.query_params.get("session_id")
-        response = await call_next(request)
-        response.headers["x-request-id"] = request.state.request_id
-        return response
 
     @app.exception_handler(BackendError)
     async def backend_error_handler(request: Request, exc: BackendError) -> JSONResponse:  # type: ignore[no-untyped-def]
@@ -60,7 +66,7 @@ def install_http_runtime(app: FastAPI) -> None:
         log_event(
             "error",
             "backend_error",
-            request_id=request.state.request_id,
+            request_id=getattr(request.state, "request_id", None),
             status_code=status_code,
             error_code=code,
             retryable=retryable,
@@ -108,7 +114,7 @@ def install_http_runtime(app: FastAPI) -> None:
         log_event(
             "error",
             "unhandled_exception",
-            request_id=request.state.request_id,
+            request_id=getattr(request.state, "request_id", None),
             path=str(request.url.path),
             session_id=getattr(request.state, "session_id", None),
             message=str(exc),
@@ -138,7 +144,7 @@ def _error_envelope(
             "sessionId": session_id,
         },
         "meta": {
-            "requestId": request.state.request_id,
+            "requestId": getattr(request.state, "request_id", None),
             "timestamp": _timestamp(),
             "backendVersion": "0.1.0",
             "sessionId": session_id,
@@ -185,4 +191,10 @@ def _allowed_cors_origins() -> list[str]:
     return [
         "http://127.0.0.1:5173",
         "http://localhost:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
+        "http://127.0.0.1:5175",
+        "http://localhost:5175",
+        "http://127.0.0.1:5176",
+        "http://localhost:5176",
     ]
