@@ -1,0 +1,250 @@
+import type { CSSProperties } from "react";
+
+import { theme } from "../../global/styles";
+
+const border = `1px solid ${theme.colors.line}`;
+
+export const homeContinuationStyles = {
+  // ── Section ────────────────────────────────────────────────────────────
+  section: {
+    background: theme.colors.surface,
+    borderTop: border,
+    padding: "80px 28px 88px",
+    color: theme.colors.ink,
+  } satisfies CSSProperties,
+  inner: {
+    width: "min(1180px, 100%)",
+    margin: "0 auto",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+    gap: "64px",
+    alignItems: "center",
+  } satisfies CSSProperties,
+
+  // ── Left column ────────────────────────────────────────────────────────
+  copy: {
+    display: "grid",
+    gap: "22px",
+    minWidth: 0,
+  } satisfies CSSProperties,
+  kicker: {
+    margin: 0,
+    color: theme.colors.orange,
+    fontSize: "0.76rem",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
+  } satisfies CSSProperties,
+  title: {
+    margin: 0,
+    fontSize: "clamp(2rem, 3.6vw, 3.4rem)",
+    lineHeight: 1.06,
+    fontWeight: 700,
+    letterSpacing: "-0.03em",
+  } satisfies CSSProperties,
+  body: {
+    margin: 0,
+    maxWidth: "52ch",
+    color: theme.colors.muted,
+    fontSize: "1.05rem",
+    lineHeight: 1.72,
+  } satisfies CSSProperties,
+
+  // ── Metrics ────────────────────────────────────────────────────────────
+  metricRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "0",
+    borderRadius: "12px",
+    border,
+    overflow: "hidden",
+    marginTop: "8px",
+  } satisfies CSSProperties,
+  metric: {
+    padding: "20px 18px",
+    background: "#ffffff",
+    borderRight: border,
+  } satisfies CSSProperties,
+  metricValue: {
+    margin: 0,
+    color: theme.colors.orange,
+    fontSize: "1.9rem",
+    fontWeight: 700,
+    lineHeight: 1,
+    letterSpacing: "-0.02em",
+  } satisfies CSSProperties,
+  metricLabel: {
+    margin: "8px 0 0",
+    color: theme.colors.muted,
+    fontSize: "0.82rem",
+    lineHeight: 1.45,
+  } satisfies CSSProperties,
+
+  // ── Right: workflow preview panel ──────────────────────────────────────
+  workflowPanel: {
+    display: "grid",
+    gap: "0",
+    borderRadius: "12px",
+    border,
+    background: "#ffffff",
+    overflow: "hidden",
+    boxShadow: theme.shadows.card,
+    minWidth: 0,
+  } satisfies CSSProperties,
+  panelTop: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    padding: "18px 20px",
+    borderBottom: border,
+    background: theme.colors.gray,
+  } satisfies CSSProperties,
+  panelEyebrow: {
+    margin: "0 0 3px",
+    color: theme.colors.orange,
+    fontSize: "0.68rem",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.1em",
+  } satisfies CSSProperties,
+  panelTitle: {
+    margin: 0,
+    fontSize: "0.96rem",
+    fontWeight: 700,
+    letterSpacing: "-0.01em",
+    color: theme.colors.ink,
+  } satisfies CSSProperties,
+  statusPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    height: "28px",
+    padding: "0 12px",
+    borderRadius: theme.radius.pill,
+    background: "#ffffff",
+    border,
+    color: theme.colors.muted,
+    fontSize: "0.74rem",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+
+  // ── Step cards (look like actual flow nodes) ───────────────────────────
+  stepList: {
+    display: "grid",
+    gap: "0",
+  } satisfies CSSProperties,
+  stepCard: {
+    padding: "18px 20px",
+    borderBottom: border,
+    background: "#ffffff",
+  } satisfies CSSProperties,
+  stepCardTop: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginBottom: "10px",
+  } satisfies CSSProperties,
+  stepKind: {
+    color: theme.colors.orange,
+    fontSize: "0.68rem",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+  } satisfies CSSProperties,
+  stepState: {
+    display: "inline-flex",
+    alignItems: "center",
+    height: "22px",
+    padding: "0 9px",
+    borderRadius: "999px",
+    background: theme.colors.gray,
+    color: theme.colors.muted,
+    fontSize: "0.68rem",
+    fontWeight: 700,
+  } satisfies CSSProperties,
+  stepTitle: {
+    margin: "0 0 5px",
+    fontSize: "0.96rem",
+    fontWeight: 700,
+    letterSpacing: "-0.01em",
+    lineHeight: 1.25,
+  } satisfies CSSProperties,
+  stepText: {
+    margin: 0,
+    color: theme.colors.muted,
+    fontSize: "0.86rem",
+    lineHeight: 1.55,
+  } satisfies CSSProperties,
+
+  // ── Footer ─────────────────────────────────────────────────────────────
+  footer: {
+    background: theme.colors.surface,
+    borderTop: border,
+    padding: "28px 36px",
+    color: theme.colors.ink,
+  } satisfies CSSProperties,
+  footerInner: {
+    width: "min(1180px, 100%)",
+    margin: "0 auto",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "24px",
+    flexWrap: "wrap",
+  } satisfies CSSProperties,
+  footerBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "18px",
+    minWidth: 0,
+  } satisfies CSSProperties,
+  footerLogo: {
+    width: "100px",
+    height: "34px",
+    objectFit: "contain",
+    display: "block",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  footerTagline: {
+    margin: 0,
+    color: theme.colors.muted,
+    fontSize: "0.86rem",
+    lineHeight: 1.5,
+  } satisfies CSSProperties,
+  footerLinks: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  footerLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    height: "36px",
+    padding: "0 14px",
+    borderRadius: "8px",
+    border,
+    background: "#ffffff",
+    color: theme.colors.ink,
+    fontSize: "0.88rem",
+    fontWeight: 600,
+    textDecoration: "none",
+  } satisfies CSSProperties,
+  footerLinkPrimary: {
+    display: "inline-flex",
+    alignItems: "center",
+    height: "36px",
+    padding: "0 16px",
+    borderRadius: "8px",
+    border: "none",
+    background: theme.colors.orange,
+    color: "#ffffff",
+    fontSize: "0.88rem",
+    fontWeight: 700,
+    textDecoration: "none",
+  } satisfies CSSProperties,
+} as const;

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { WorkflowCreation } from "./components/WorkflowCreation/WorkflowCreation";
 import { HeroSection } from "./components/HeroSection/HeroSection";
+import { HomeContinuation } from "./components/HomeContinuation/HomeContinuation";
 import { WorkflowStudio } from "./components/WorkflowStudio/WorkflowStudio";
 import { layout } from "./global/styles";
 
@@ -65,7 +66,10 @@ export default function App() {
     <main style={layout.page}>
       <div style={layout.shell}>
         {currentView === "home" ? (
-          <HeroSection onTryWorkflows={openWorkflows} />
+          <>
+            <HeroSection onTryWorkflows={openWorkflows} />
+            <HomeContinuation />
+          </>
         ) : currentView === "workflows" ? (
           <WorkflowStudio onBack={goHome} onOpenCreation={openWorkflowCreation} />
         ) : (
