@@ -25,27 +25,19 @@ export function WorkflowStudio({ onBack, onOpenCreation }: WorkflowStudioProps) 
 
   useEffect(() => {
     let cancelled = false;
-
     backendApi
       .listWorkflows()
       .then((catalog) => {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         setWorkflows(catalog);
         setLoadState("ready");
       })
       .catch((caught: Error) => {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         setError(caught.message);
         setLoadState("error");
       });
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const workflowCards = useMemo(
@@ -60,45 +52,44 @@ export function WorkflowStudio({ onBack, onOpenCreation }: WorkflowStudioProps) 
 
   return (
     <main style={styles.page}>
-      <section style={styles.navSection}>
-        <div style={styles.nav}>
-          <button
-            aria-label="Back to home page"
-            onClick={onBack}
-            style={styles.logoButton}
-            type="button"
-          >
-            <img alt="Swiggy" src={workflowImages.logo} style={styles.logo} />
-          </button>
 
-          <div style={styles.navActions}>
-            <button onClick={() => onOpenCreation?.(undefined, "author")} style={styles.createButton} type="button">
-              Create new workflow
-            </button>
-            <button onClick={onBack} style={styles.backButton} type="button">
-              Back to home page
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section style={styles.heroSection}>
-        <p style={styles.kicker}>Workflows marketplace</p>
-        <h1 style={styles.title}>Reusable Swiggy workflows for repeat intent.</h1>
-        <p style={styles.subtitle}>
-          Browse saved workflows, run them with your own inputs, or open any definition in the
-          authoring studio to adjust its constraints, approvals, and tool sequence.
-        </p>
-        <button onClick={() => onOpenCreation?.(undefined, "author")} style={styles.heroCta} type="button">
-          Create new workflow
+      {/* ── Nav bar ──────────────────────────────────────────────────── */}
+      <nav style={styles.nav}>
+        <button aria-label="Back to home page" onClick={onBack} style={styles.logoButton} type="button">
+          <img alt="Swiggy" src={workflowImages.logo} style={styles.logo} />
         </button>
-      </section>
 
+        <div style={styles.navCenter}>
+          <span style={styles.navTitle}>Workflow catalog</span>
+          {loadState === "ready" && (
+            <span style={styles.navCount}>{workflows.length} workflow{workflows.length !== 1 ? "s" : ""}</span>
+          )}
+        </div>
+
+        <div style={styles.navActions}>
+          <button onClick={() => onOpenCreation?.(undefined, "author")} style={styles.createButton} type="button">
+            + New workflow
+          </button>
+          <button onClick={onBack} style={styles.backButton} type="button">
+            Home
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Catalog grid ─────────────────────────────────────────────── */}
       <section style={styles.section}>
         {loadState === "loading" ? (
-          <div style={styles.statusPanel}>Loading workflow catalog from backend...</div>
+          <div style={styles.statusPanel}>Loading workflow catalog…</div>
         ) : loadState === "error" ? (
           <div style={styles.statusPanel}>Backend catalog unavailable: {error}</div>
+        ) : workflows.length === 0 ? (
+          <div style={styles.emptyPanel}>
+            <p style={styles.emptyTitle}>No workflows yet</p>
+            <p style={styles.emptyText}>Create your first workflow to see it here.</p>
+            <button onClick={() => onOpenCreation?.(undefined, "author")} style={styles.emptyCta} type="button">
+              Create workflow
+            </button>
+          </div>
         ) : (
           <div style={styles.marketplaceGrid}>
             {workflowCards.map((workflow) => (
@@ -112,9 +103,7 @@ export function WorkflowStudio({ onBack, onOpenCreation }: WorkflowStudioProps) 
                   <p style={styles.marketSummary}>{workflow.summary}</p>
                   <div style={styles.tagRow}>
                     {workflow.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} style={styles.tagPill}>
-                        {tag}
-                      </span>
+                      <span key={tag} style={styles.tagPill}>{tag}</span>
                     ))}
                   </div>
                   <div style={styles.cardActionRow}>
