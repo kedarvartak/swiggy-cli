@@ -1,0 +1,233 @@
+{
+  "runId": "run_eb2406725ca6",
+  "workflowId": "swiggy.healthy-meal",
+  "sessionId": "default",
+  "status": "failed",
+  "domain": "food",
+  "title": "Healthy Meal Finder",
+  "goal": "Find a meal that satisfies nutrition, budget, and distance constraints, then prepare a reviewable food cart candidate.",
+  "description": "Finds a meal that satisfies basic nutrition, distance, budget, and restaurant quality constraints before preparing a cart candidate.",
+  "providedInputs": {
+    "query": "grilled chicken bowl",
+    "city": "Bangalore",
+    "maxDistanceKm": 7,
+    "minProteinGrams": 80,
+    "minRating": 4,
+    "maxBudget": 500
+  },
+  "resolvedContext": {
+    "approvalPoints": [
+      {
+        "stepId": "review-cart",
+        "title": "Review prepared cart",
+        "description": "Pause after cart preparation so the user can confirm the selected meal and total.",
+        "kind": "before_mutation"
+      }
+    ],
+    "constraints": [
+      {
+        "id": "budget-cap",
+        "title": "Respect user budget",
+        "description": "Keep the selected meal combination within the user's maximum budget when provided.",
+        "type": "budget"
+      },
+      {
+        "id": "distance-window",
+        "title": "Limit delivery distance",
+        "description": "Only consider restaurants that satisfy the user's distance tolerance.",
+        "type": "location"
+      },
+      {
+        "id": "protein-threshold",
+        "title": "Meet nutrition threshold",
+        "description": "Filter and rank only meals that satisfy the requested minimum protein target.",
+        "type": "dietary"
+      }
+    ],
+    "fallbackRules": [
+      "If a shortlisted restaurant does not meet the protein threshold after menu inspection, continue ranking the next valid candidate.",
+      "If the final cart exceeds budget after add-ons or taxes, return to ranking rather than mutating further."
+    ],
+    "successOutput": {
+      "type": "cart-ready",
+      "description": "A reviewable food cart candidate that satisfies the declared nutrition and budget constraints."
+    },
+    "planArgumentHints": {
+      "search-restaurants": [
+        "query",
+        "city"
+      ],
+      "inspect-menus": [
+        "restaurant_id"
+      ],
+      "prepare-cart": [
+        "restaurant_id",
+        "items"
+      ]
+    }
+  },
+  "currentStepId": "search-restaurants",
+  "pendingApproval": null,
+  "steps": [
+    {
+      "id": "capture-constraints",
+      "title": "Capture meal constraints",
+      "kind": "input",
+      "status": "completed",
+      "toolName": null,
+      "stage": null,
+      "requiresApproval": false,
+      "startedAt": "2026-05-29T13:23:40.899540+00:00",
+      "completedAt": "2026-05-29T13:23:40.899672+00:00",
+      "output": {
+        "status": "completed",
+        "kind": "input"
+      },
+      "error": null
+    },
+    {
+      "id": "search-restaurants",
+      "title": "Search nearby restaurants",
+      "kind": "tool-call",
+      "status": "failed",
+      "toolName": "search_restaurants",
+      "stage": "discover",
+      "requiresApproval": false,
+      "startedAt": "2026-05-29T13:23:40.900537+00:00",
+      "completedAt": "2026-05-29T13:23:40.901612+00:00",
+      "output": {},
+      "error": "Tool `search_restaurants` failed: Missing SWIGGY_MCP_COMMAND. Set it to the executable that starts your Swiggy MCP server."
+    },
+    {
+      "id": "inspect-menus",
+      "title": "Inspect restaurant menus",
+      "kind": "tool-call",
+      "status": "pending",
+      "toolName": "get_restaurant_menu",
+      "stage": "discover",
+      "requiresApproval": false,
+      "startedAt": null,
+      "completedAt": null,
+      "output": {},
+      "error": null
+    },
+    {
+      "id": "rank-options",
+      "title": "Rank valid meal combinations",
+      "kind": "decision",
+      "status": "pending",
+      "toolName": null,
+      "stage": null,
+      "requiresApproval": false,
+      "startedAt": null,
+      "completedAt": null,
+      "output": {},
+      "error": null
+    },
+    {
+      "id": "prepare-cart",
+      "title": "Prepare a draft cart",
+      "kind": "tool-call",
+      "status": "pending",
+      "toolName": "update_food_cart",
+      "stage": "cart",
+      "requiresApproval": false,
+      "startedAt": null,
+      "completedAt": null,
+      "output": {},
+      "error": null
+    },
+    {
+      "id": "review-cart",
+      "title": "Review cart summary",
+      "kind": "tool-call",
+      "status": "pending",
+      "toolName": "get_food_cart",
+      "stage": "cart",
+      "requiresApproval": false,
+      "startedAt": null,
+      "completedAt": null,
+      "output": {},
+      "error": null
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_f2164777b047",
+      "type": "run_created",
+      "stepId": null,
+      "toolName": null,
+      "timestamp": "2026-05-29T13:23:40.896000+00:00",
+      "payload": {},
+      "message": "Workflow run created."
+    },
+    {
+      "id": "evt_c31459c2a482",
+      "type": "run_started",
+      "stepId": null,
+      "toolName": null,
+      "timestamp": "2026-05-29T13:23:40.899349+00:00",
+      "payload": {},
+      "message": "Workflow run started."
+    },
+    {
+      "id": "evt_a152017de443",
+      "type": "step_started",
+      "stepId": "capture-constraints",
+      "toolName": null,
+      "timestamp": "2026-05-29T13:23:40.899564+00:00",
+      "payload": {},
+      "message": "Capture meal constraints"
+    },
+    {
+      "id": "evt_93d4350dd70b",
+      "type": "step_completed",
+      "stepId": "capture-constraints",
+      "toolName": null,
+      "timestamp": "2026-05-29T13:23:40.899692+00:00",
+      "payload": {
+        "status": "completed",
+        "kind": "input"
+      },
+      "message": null
+    },
+    {
+      "id": "evt_371a83de2855",
+      "type": "step_started",
+      "stepId": "search-restaurants",
+      "toolName": "search_restaurants",
+      "timestamp": "2026-05-29T13:23:40.900568+00:00",
+      "payload": {},
+      "message": "Search nearby restaurants"
+    },
+    {
+      "id": "evt_1f8fa5baa007",
+      "type": "tool_call_started",
+      "stepId": "search-restaurants",
+      "toolName": "search_restaurants",
+      "timestamp": "2026-05-29T13:23:40.900770+00:00",
+      "payload": {
+        "arguments": {
+          "query": "grilled chicken bowl",
+          "city": "Bangalore"
+        }
+      },
+      "message": null
+    },
+    {
+      "id": "evt_68ab774bc4e7",
+      "type": "run_failed",
+      "stepId": "search-restaurants",
+      "toolName": "search_restaurants",
+      "timestamp": "2026-05-29T13:23:40.901643+00:00",
+      "payload": {},
+      "message": "Tool `search_restaurants` failed: Missing SWIGGY_MCP_COMMAND. Set it to the executable that starts your Swiggy MCP server."
+    }
+  ],
+  "summary": {
+    "completedSteps": 1,
+    "totalSteps": 6
+  },
+  "createdAt": "2026-05-29T13:23:40.895833+00:00",
+  "updatedAt": "2026-05-29T13:23:40.901659+00:00"
+}

@@ -170,6 +170,10 @@ export type WorkflowRun = {
   updatedAt: string;
 };
 
+import { demoApprove, demoPlan, demoRun } from "./demo";
+
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
+
 const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000";
 
 function backendBaseUrl() {
@@ -222,18 +226,21 @@ export const backendApi = {
     });
   },
   createPlan(workflowId: string, payload: Record<string, JsonValue>) {
+    if (DEMO_MODE) return demoPlan(backendApi.getWorkflow, workflowId, payload);
     return request<WorkflowPlan>(`/api/workflows/${encodeURIComponent(workflowId)}/plan`, {
       method: "POST",
       body: JSON.stringify({ payload }),
     });
   },
   createRun(workflowId: string, payload: Record<string, JsonValue>, autoStart = true) {
+    if (DEMO_MODE) return demoRun(backendApi.getWorkflow, workflowId, payload);
     return request<WorkflowRun>("/api/runs", {
       method: "POST",
       body: JSON.stringify({ workflowId, payload, autoStart }),
     });
   },
   approveRun(runId: string, approved: boolean) {
+    if (DEMO_MODE) return demoApprove(runId, approved);
     return request<WorkflowRun>(`/api/runs/${encodeURIComponent(runId)}/approve`, {
       method: "POST",
       body: JSON.stringify({ approved }),
