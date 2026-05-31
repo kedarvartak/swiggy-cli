@@ -1,0 +1,15 @@
+{
+  "name": "swiggy-cli-demo",
+  "private": true,
+  "type": "module",
+  "description": "AI-driven, reproducible demo recorder for the Swiggy CLI frontend",
+  "scripts": {
+    "demo": "node run.mjs",
+    "demo:voice": "node lib/narrate.mjs",
+    "demo:record": "node record.mjs",
+    "demo:build": "node build.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}
